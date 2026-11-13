@@ -19,7 +19,7 @@ enum Status { OFFLINE, CONNECTING, JOINED, SERVER }
 
 const DEFAULT_PORT: int = 7777
 const MAX_PLAYERS: int = 8
-const PROTOCOL_VERSION: int = 1
+const PROTOCOL_VERSION: int = 2
 const SERVER_ID: int = 1
 
 ## Соединений принимаем больше, чем игроков: лишнему нужно успеть объяснить отказ.
@@ -38,6 +38,8 @@ const REASON_SERVER_FULL: String = "Сервер заполнен"
 var status: Status = Status.OFFLINE
 ## peer_id -> имя. Порядок вставки == порядок входа.
 var players: Dictionary[int, String] = {}
+## peer_id -> номер цвета из PlayerPalette. Закреплён за игроком, пока он на сервере.
+var player_colors: Dictionary[int, int] = {}
 ## Хост лобби — самый ранний из зарегистрированных игроков. 0 — хоста нет.
 var host_id: int = 0
 
@@ -122,6 +124,11 @@ func get_player_name(peer_id: int) -> String:
 	return players[peer_id] if players.has(peer_id) else ""
 
 
+## Номер цвета игрока из PlayerPalette, -1 если игрок неизвестен.
+func get_player_color(peer_id: int) -> int:
+	return player_colors[peer_id] if player_colors.has(peer_id) else -1
+
+
 ## Сервер: можно ли сейчас отправлять этому пиру. Пир, который отключился в этом же
 ## опросе сети, ещё числится подключённым, но отправка ему даёт ошибку движка.
 func is_peer_reachable(peer_id: int) -> bool:
@@ -148,6 +155,7 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	if not players.has(peer_id):
 		return
 	players.erase(peer_id)
+	player_colors.erase(peer_id)
 	if host_id == peer_id:
 		host_id = _first_player_id()
 	_send_lobby_to_players()
@@ -171,6 +179,7 @@ func _register(player_name: String, protocol_version: int) -> void:
 		return
 	_unregistered.erase(sender)
 	players[sender] = PlayerName.make_unique(PlayerName.sanitize(player_name), PackedStringArray(players.values()))
+	player_colors[sender] = _first_free_color()
 	if host_id == 0:
 		host_id = sender
 	# Сначала список: новичок должен стать JOINED раньше, чем получит что-то ещё от сервера.
@@ -183,7 +192,15 @@ func _register(player_name: String, protocol_version: int) -> void:
 func _send_lobby_to_players() -> void:
 	for peer_id: int in players:
 		if is_peer_reachable(peer_id):
-			_lobby_snapshot.rpc_id(peer_id, players, host_id)
+			_lobby_snapshot.rpc_id(peer_id, players, player_colors, host_id)
+
+
+func _first_free_color() -> int:
+	var taken: Array = player_colors.values()
+	for slot: int in PlayerPalette.COLORS.size():
+		if not taken.has(slot):
+			return slot
+	return 0
 
 
 func _first_player_id() -> int:
@@ -236,7 +253,7 @@ func _watch_connect_timeout(session: int) -> void:
 
 
 @rpc("authority", "call_remote", "reliable")
-func _lobby_snapshot(names: Dictionary, new_host_id: int) -> void:
+func _lobby_snapshot(names: Dictionary, colors: Dictionary, new_host_id: int) -> void:
 	if status != Status.CONNECTING and status != Status.JOINED:
 		return
 	# Через RPC словарь приходит нетипизированным: собираем заново с проверкой.
@@ -246,11 +263,18 @@ func _lobby_snapshot(names: Dictionary, new_host_id: int) -> void:
 		if not (key is int and value is String):
 			return
 		new_players[key as int] = value as String
+	var new_colors: Dictionary[int, int] = {}
+	for key: Variant in colors:
+		var slot: Variant = colors[key]
+		if not (key is int and slot is int) or not new_players.has(key as int):
+			return
+		new_colors[key as int] = slot as int
 	if new_players.size() > MAX_PLAYERS or not new_players.has(local_id()) or not new_players.has(new_host_id):
 		return
 	var old_players: Dictionary[int, String] = players
 	var is_first: bool = status == Status.CONNECTING
 	players = new_players
+	player_colors = new_colors
 	host_id = new_host_id
 	status = Status.JOINED
 	for peer_id: int in old_players:
@@ -291,6 +315,7 @@ func _close_session() -> void:
 	multiplayer.multiplayer_peer.close()
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	players = {}
+	player_colors = {}
 	host_id = 0
 	_unregistered.clear()
 	lobby_changed.emit()
