@@ -1,0 +1,39 @@
+[gd_scene format=3]
+
+[ext_resource type="Theme" path="res://resources/ui/theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://scripts/ui/hud/hud_prompt.gd" id="2_prompt"]
+[ext_resource type="Script" path="res://scripts/ui/hud/hud_key_cap.gd" id="3_key"]
+
+[node name="Prompt" type="HBoxContainer"]
+visible = false
+mouse_filter = 2
+theme = ExtResource("1_theme")
+alignment = 1
+script = ExtResource("2_prompt")
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"HudPanelPrompt"
+
+[node name="Row" type="HBoxContainer" parent="Panel"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Key" type="Label" parent="Panel/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"LabelKey"
+text = "E"
+horizontal_alignment = 1
+vertical_alignment = 1
+script = ExtResource("3_key")
+
+[node name="Action" type="Label" parent="Panel/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"LabelHud"
+text = "Действие"

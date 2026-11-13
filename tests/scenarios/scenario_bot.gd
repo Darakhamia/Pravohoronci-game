@@ -183,6 +183,18 @@ func hold(action: StringName, seconds: float) -> void:
 	release(action)
 
 
+## Нажать и отпустить клавишу так, как это видит интерфейс: событием ввода, а не опросом
+## (например, Esc закрывает панель, которая держит курсор и не даёт ходить).
+func press_key(keycode: Key) -> void:
+	for pressed: bool in [true, false]:
+		var event: InputEventKey = InputEventKey.new()
+		event.keycode = keycode
+		event.physical_keycode = keycode
+		event.pressed = pressed
+		Input.parse_input_event(event)
+		await get_tree().process_frame
+
+
 # --- Запуск и выход ---
 
 

@@ -1,0 +1,20 @@
+[gd_scene format=3]
+
+[ext_resource type="Theme" path="res://resources/ui/theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://scripts/ui/hud/hud_toasts.gd" id="2_toasts"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud/hud_toast.tscn" id="3_toast"]
+
+[node name="Toasts" type="VBoxContainer"]
+mouse_filter = 2
+theme = ExtResource("1_theme")
+theme_type_variation = &"VBoxTight"
+script = ExtResource("2_toasts")
+
+[node name="Toast1" parent="." instance=ExtResource("3_toast")]
+layout_mode = 2
+
+[node name="Toast2" parent="." instance=ExtResource("3_toast")]
+layout_mode = 2
+
+[node name="Toast3" parent="." instance=ExtResource("3_toast")]
+layout_mode = 2

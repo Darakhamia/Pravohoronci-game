@@ -281,6 +281,11 @@ func _do_keypad(expected_done: int) -> bool:
 
 
 func _answer_from_far(code: String, done_before: int) -> bool:
+	# Панель ввода кода держит курсор и не даёт ходить: игрок закрывает её клавишей Esc.
+	if not me().input.enabled:
+		await press_key(KEY_ESCAPE)
+	if not await expect(func() -> bool: return me().input.enabled, 3.0, "панель ввода кода не закрылась по Esc"):
+		return false
 	var far_point: Vector3 = _keypad.to_global(Vector3(0.0, 0.0, -FAR_DISTANCE))
 	if not check(await walk_to(far_point, STOP_DISTANCE, WALK_DEADLINE_SEC), "бот не отошёл от терминала"):
 		return false

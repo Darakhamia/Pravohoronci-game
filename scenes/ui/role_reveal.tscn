@@ -1,0 +1,189 @@
+[gd_scene format=3]
+
+[ext_resource type="Theme" path="res://resources/ui/theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://scripts/ui/role_reveal.gd" id="2_reveal"]
+[ext_resource type="Script" path="res://scripts/ui/widgets/helmet_avatar.gd" id="3_helmet"]
+
+[node name="RoleReveal" type="Control"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme = ExtResource("1_theme")
+script = ExtResource("2_reveal")
+
+[node name="Background" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"PanelScreen"
+
+[node name="Page" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 13
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -960.0
+offset_right = 960.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Portrait" type="Control" parent="Page"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -672.0
+offset_top = -344.0
+offset_right = -160.0
+offset_bottom = 168.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("3_helmet")
+
+[node name="Margin" type="MarginContainer" parent="Page"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"MarginPage"
+
+[node name="Layout" type="VBoxContainer" parent="Page/Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VBoxRoomy"
+
+[node name="Masthead" type="VBoxContainer" parent="Page/Margin/Layout"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Heading" type="VBoxContainer" parent="Page/Margin/Layout/Masthead"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VBoxTight"
+
+[node name="Kicker" type="Label" parent="Page/Margin/Layout/Masthead/Heading"]
+layout_mode = 2
+theme_type_variation = &"LabelOverline"
+text = "Твоя роль"
+uppercase = true
+
+[node name="LeadIn" type="Label" parent="Page/Margin/Layout/Masthead/Heading"]
+layout_mode = 2
+theme_type_variation = &"LabelTitle"
+text = "Ты —"
+
+[node name="RoleInset" type="MarginContainer" parent="Page/Margin/Layout/Masthead/Heading"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"MarginDisplayXL"
+
+[node name="RoleName" type="Label" parent="Page/Margin/Layout/Masthead/Heading/RoleInset"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"LabelDisplayXLCyan"
+text = "Экипаж"
+
+[node name="Rule" type="HSeparator" parent="Page/Margin/Layout/Masthead"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"HSeparatorStrong"
+
+[node name="Body" type="HBoxContainer" parent="Page/Margin/Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+theme_type_variation = &"HBoxFlush"
+
+[node name="Info" type="VBoxContainer" parent="Page/Margin/Layout/Body"]
+custom_minimum_size = Vector2(896, 0)
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"VBoxRoomy"
+
+[node name="Brief" type="VBoxContainer" parent="Page/Margin/Layout/Body/Info"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Lead" type="Label" parent="Page/Margin/Layout/Body/Info/Brief"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"LabelLead"
+text = "Среди вас есть предатель."
+autowrap_mode = 3
+
+[node name="Hint" type="Label" parent="Page/Margin/Layout/Body/Info/Brief"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"LabelDim"
+text = "Выполняй задания."
+autowrap_mode = 3
+
+[node name="Partners" type="VBoxContainer" parent="Page/Margin/Layout/Body/Info"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VBoxSnug"
+
+[node name="PartnersCaption" type="Label" parent="Page/Margin/Layout/Body/Info/Partners"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"LabelOverline"
+text = "Напарник"
+uppercase = true
+
+[node name="PartnerList" type="VBoxContainer" parent="Page/Margin/Layout/Body/Info/Partners"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VBoxSnug"
+
+[node name="Gap" type="Control" parent="Page/Margin/Layout/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="Side" type="VBoxContainer" parent="Page/Margin/Layout/Body"]
+custom_minimum_size = Vector2(512, 0)
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"VBoxFlush"
+
+[node name="Countdown" type="VBoxContainer" parent="Page/Margin/Layout/Body/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VBoxFlush"
+
+[node name="Timer" type="Label" parent="Page/Margin/Layout/Body/Side/Countdown"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"LabelNumberAccent"
+text = "0:00"
+
+[node name="TimerCaption" type="Label" parent="Page/Margin/Layout/Body/Side/Countdown"]
+layout_mode = 2
+theme_type_variation = &"LabelOverline"
+text = "Начинаем через"
+uppercase = true
