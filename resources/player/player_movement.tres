@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="PlayerMovementConfig" format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/player_movement_config.gd" id="1_config"]
+
+[resource]
+script = ExtResource("1_config")
+move_speed = 5.0
+ground_acceleration = 40.0
+air_acceleration = 8.0
+jump_velocity = 5.5
+gravity = 15.0

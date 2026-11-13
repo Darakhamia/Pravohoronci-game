@@ -1,0 +1,30 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/gameplay/world.gd" id="2_world"]
+[ext_resource type="PackedScene" path="res://scenes/ui/main_menu.tscn" id="3_menu"]
+[ext_resource type="PackedScene" path="res://scenes/ui/lobby.tscn" id="4_lobby"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="5_hud"]
+
+[node name="Main" type="Node"]
+script = ExtResource("1_main")
+
+[node name="World" type="Node3D" parent="."]
+script = ExtResource("2_world")
+
+[node name="MapSpawner" type="MultiplayerSpawner" parent="World"]
+spawn_path = NodePath("..")
+spawn_limit = 1
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="MainMenu" parent="UI" instance=ExtResource("3_menu")]
+unique_name_in_owner = true
+
+[node name="Lobby" parent="UI" instance=ExtResource("4_lobby")]
+unique_name_in_owner = true
+visible = false
+
+[node name="Hud" parent="UI" instance=ExtResource("5_hud")]
+unique_name_in_owner = true
+visible = false

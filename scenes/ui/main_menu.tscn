@@ -1,0 +1,105 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/main_menu.gd" id="1_menu"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.07, 0.08, 0.16, 1)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Layout" type="VBoxContainer" parent="Center"]
+layout_mode = 2
+theme_override_constants/separation = 48
+
+[node name="Title" type="Label" parent="Center/Layout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.82, 0.25, 1)
+theme_override_font_sizes/font_size = 112
+text = "Предатель"
+horizontal_alignment = 1
+
+[node name="Panel" type="PanelContainer" parent="Center/Layout"]
+custom_minimum_size = Vector2(680, 0)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Center/Layout/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 40
+theme_override_constants/margin_bottom = 32
+
+[node name="Form" type="VBoxContainer" parent="Center/Layout/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="NameLabel" type="Label" parent="Center/Layout/Panel/Margin/Form"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+text = "Имя"
+
+[node name="NameEdit" type="LineEdit" parent="Center/Layout/Panel/Margin/Form"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+placeholder_text = "Игрок"
+
+[node name="AddressLabel" type="Label" parent="Center/Layout/Panel/Margin/Form"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+text = "Адрес сервера"
+
+[node name="AddressEdit" type="LineEdit" parent="Center/Layout/Panel/Margin/Form"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+placeholder_text = "127.0.0.1:7777"
+
+[node name="Spacer" type="Control" parent="Center/Layout/Panel/Margin/Form"]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+
+[node name="ConnectButton" type="Button" parent="Center/Layout/Panel/Margin/Form"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+theme_override_font_sizes/font_size = 34
+text = "Подключиться"
+
+[node name="QuitButton" type="Button" parent="Center/Layout/Panel/Margin/Form"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "Выход"
+
+[node name="StatusLabel" type="Label" parent="Center/Layout/Panel/Margin/Form"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.62, 0.45, 1)
+theme_override_font_sizes/font_size = 26
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
