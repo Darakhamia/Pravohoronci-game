@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/interaction/canister_rack.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://assets/models/props/canister_rack.glb" id="2_model"]
+
+[node name="CanisterRack" type="Node3D"]
+script = ExtResource("1_script")
+prompt = "Взять канистру"
+focus_offset = Vector3(0, 0.8, 0)
+
+[node name="Model" parent="." instance=ExtResource("2_model")]

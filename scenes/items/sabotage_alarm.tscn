@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+
+[node name="SabotageAlarm" type="Node3D"]
+
+[node name="Light" type="OmniLight3D" parent="."]
+visible = false
+light_color = Color(1, 0.365, 0.451, 1)
+light_energy = 2.0
+omni_range = 7.0
