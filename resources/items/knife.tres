@@ -11,5 +11,6 @@ kind = 0
 damage = 100
 attack_range = 1.9
 attack_interval = 1.0
+draw_seconds = 0.5
 hit_radius = 0.15
 traitor_only = true

@@ -18,11 +18,13 @@ func test_weapon_balance_values() -> void:
 	assert_eq(FISTS.damage, 8, "урон кулаков")
 	assert_near(FISTS.attack_range, 1.6, "дальность кулаков")
 	assert_near(FISTS.attack_interval, 0.6, "пауза кулаков")
+	assert_near(FISTS.draw_seconds, 0.15, "кулаки заносят")
 	assert_true(not FISTS.uses_ammo and not FISTS.traitor_only and not FISTS.two_handed, "кулаки есть у всех и без патронов")
 	assert_eq(PISTOL.kind, WeaponConfig.Kind.HITSCAN, "пистолет стреляет лучом")
 	assert_eq(PISTOL.damage, 25, "урон пистолета")
 	assert_near(PISTOL.attack_range, 60.0, "дальность пистолета")
 	assert_near(PISTOL.attack_interval, 0.35, "пауза пистолета")
+	assert_near(PISTOL.draw_seconds, 0.35, "пистолет достают")
 	assert_near(PISTOL.spread_degrees, 0.6, "разброс пистолета")
 	assert_true(PISTOL.uses_ammo and not PISTOL.traitor_only and not PISTOL.two_handed, "пистолет тратит патроны и доступен всем")
 	assert_near(PISTOL.hit_radius, 0.0, "у пули толщины нет")
@@ -30,6 +32,8 @@ func test_weapon_balance_values() -> void:
 	assert_eq(KNIFE.damage, 100, "урон ножа")
 	assert_near(KNIFE.attack_range, 1.9, "дальность ножа")
 	assert_near(KNIFE.attack_interval, 1.0, "пауза ножа")
+	assert_near(KNIFE.draw_seconds, 0.5, "нож достают дольше всего")
+	assert_true(KNIFE.draw_seconds + KNIFE.attack_interval >= 1.0, "нож виден в руке не меньше секунды вокруг удара")
 	assert_true(KNIFE.traitor_only and not KNIFE.uses_ammo, "нож только у предателя и без патронов")
 	assert_true(FISTS.hit_radius > 0.0 and KNIFE.hit_radius > 0.0, "у ударов есть толщина")
 	assert_true(KNIFE.damage >= PlayerBody.CONFIG.max_health, "нож убивает с одного удара в торс")
@@ -128,3 +132,31 @@ func test_tracer_starts_near_the_weapon() -> void:
 	assert_true(AttackEffects.get_muzzle_position(from, from + Vector3.FORWARD * 0.2) == from, "в упор след идёт из точки выстрела")
 	var up: Vector3 = AttackEffects.get_muzzle_position(from, from + Vector3.UP * 10.0)
 	assert_true(up.is_finite() and up.y > from.y, "выстрел вертикально вверх не ломает расчёт")
+
+
+## Предмет в руках — подсказка, кто предатель: в синхронизаторе аватара (он уходит каждому
+## подключившемуся пиру, даже незарегистрированному) его быть не должно.
+func test_held_item_is_not_replicated_to_everyone() -> void:
+	var player: Player = PLAYER_SCENE.instantiate() as Player
+	var sync: MultiplayerSynchronizer = player.get_node(^"StateSync") as MultiplayerSynchronizer
+	var paths: Array[String] = []
+	for path: NodePath in sync.replication_config.get_properties():
+		paths.append(str(path))
+	assert_true(not paths.has(".:held_item"), "held_item не лежит в синхронизаторе: %s" % [paths])
+	assert_true(paths.has(".:life") and paths.has(".:limbs_lost") and paths.has(".:sync_position"),
+			"то, что видно в мире, реплицируется по-прежнему: %s" % [paths])
+	player.free()
+
+
+func test_client_accepts_held_item_only_from_the_item_set() -> void:
+	var player: Player = PLAYER_SCENE.instantiate() as Player
+	var seen: Array[int] = []
+	player.held_item_changed.connect(func(item_id: int) -> void: seen.append(item_id))
+	player.receive_held_item(ITEMS.index_of(KNIFE))
+	assert_eq(player.held_item, ITEMS.index_of(KNIFE), "клиент принял предмет из набора")
+	for bad: int in [-1, ITEMS.items.size(), 99]:
+		player.receive_held_item(bad)
+		assert_eq(player.held_item, ITEMS.index_of(KNIFE), "номер %d вне набора отброшен" % bad)
+	player.receive_held_item(ITEMS.index_of(KNIFE))
+	assert_eq(seen, [ITEMS.index_of(KNIFE)] as Array[int], "сигнал — только когда предмет сменился")
+	player.free()

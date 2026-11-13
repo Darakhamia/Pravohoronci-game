@@ -37,3 +37,16 @@ func test_project_config_has_sane_values() -> void:
 	assert_true(World.find_map_scenes().has(config.map_scene), "основная карта лежит в папке карт")
 	assert_true(config.meeting_voting_seconds > 0.0, "на голосование есть время")
 	assert_true(config.sabotage_countdown_seconds > 0.0, "на починку саботажа есть время")
+
+
+func test_combat_and_perception_settings() -> void:
+	var config: GameConfig = Game.config
+	assert_near(config.attack_lock_seconds, 5.0, "запрет атак после начала игры и собрания")
+	assert_near(config.perception_near_radius, 2.5, "вплотную чужие руки заметны и через стену")
+	assert_near(config.perception_sight_range, 45.0, "дальность, на которой видно чужие руки")
+	assert_true(config.perception_near_radius < config.perception_sight_range, "вплотную — ближе, чем издалека")
+	var copy: GameConfig = GameConfig.new()
+	assert_true(copy.override_from_text("attack_lock_seconds", "0"), "запрет атак отключается флагом --set")
+	assert_near(copy.attack_lock_seconds, 0.0, "attack_lock_seconds")
+	assert_true(copy.override_from_text("perception_sight_range", "12.5"), "дальность обзора меняется флагом --set")
+	assert_near(copy.perception_sight_range, 12.5, "perception_sight_range")

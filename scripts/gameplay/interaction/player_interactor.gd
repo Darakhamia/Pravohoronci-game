@@ -4,6 +4,9 @@ extends Node
 ## Клиент-владелец: ищет предмет под прицелом, ведёт полоску удержания и сообщает о
 ## нажатии сигналом press_requested — World передаёт его серверу.
 ## Сервер: проверяет дальность и видимость, отсчитывает удержание и вызывает предмет.
+## Видимость и клиент, и сервер считают одинаково (_can_see_point): лучом из глаз, а для
+## ползущего игрока, которому предмет закрыл сам стол или стойка, — ещё и с высоты глаз
+## стоящего: без ног он дотягивается до кнопки рукой.
 
 ## Клиент-владелец: под прицелом другой предмет. null — ничего.
 signal focus_changed(target: Interactable)
@@ -118,7 +121,7 @@ func _find_focus() -> Interactable:
 		var angle: float = look.angle_to(to_target) if distance > 0.0 else 0.0
 		if angle > maxf(MAX_FOCUS_ANGLE, atan2(FOCUS_RADIUS, distance)) or angle >= best_angle:
 			continue
-		if not _has_line_of_sight(eye, candidate.get_focus_position()):
+		if not _can_see_point(candidate.get_focus_position()):
 			continue
 		best = candidate
 		best_angle = angle
@@ -201,7 +204,7 @@ func _server_can_use(target: Interactable) -> bool:
 	var point: Vector3 = target.get_focus_position()
 	if eye.distance_to(point) > target.interact_range + RANGE_TOLERANCE:
 		return false
-	return _has_line_of_sight(eye, point)
+	return _can_see_point(point)
 
 
 # --- Общее ---
@@ -209,6 +212,19 @@ func _server_can_use(target: Interactable) -> bool:
 
 func _can_act() -> bool:
 	return _player.life == Player.Life.ALIVE and Game.is_playing()
+
+
+## Видна ли игроку точка предмета. Обычно — из глаз. Ползущему (глаза у пола) стол или
+## стойка закрывают собственную кнопку, поэтому при неудаче он «тянется вверх»: вторая
+## попытка — с высоты глаз стоящего над тем же местом, если над игроком нет потолка.
+func _can_see_point(point: Vector3) -> bool:
+	var eye: Vector3 = _player.get_eye_position()
+	if _has_line_of_sight(eye, point):
+		return true
+	if not _player.body.is_crawling():
+		return false
+	var reach: Vector3 = _player.global_position + Vector3.UP * PlayerBody.CONFIG.stand_eye_height
+	return _has_line_of_sight(eye, reach) and _has_line_of_sight(reach, point)
 
 
 func _has_line_of_sight(from: Vector3, to: Vector3) -> bool:

@@ -126,10 +126,114 @@ func test_nearest_hit_wins() -> void:
 	assert_true(through != null and through.part == BodyPart.Part.RIGHT_ARM, "сбоку насквозь — ближняя рука")
 
 
-func test_ray_starting_inside_a_box_hits_at_zero_distance() -> void:
-	var hit: BodyHit = _cast(TORSO_CENTER, Vector3.BACK)
-	assert_true(hit != null and hit.part == BodyPart.Part.TORSO, "луч изнутри торса попадает в торс")
-	assert_near(hit.distance, 0.0, "расстояние изнутри коробки")
+func test_box_containing_the_ray_origin_is_not_hit() -> void:
+	var box: Hitbox = Hitbox.new()
+	for direction: Vector3 in [Vector3.BACK, Vector3.UP, Vector3.LEFT, Vector3(1.0, -1.0, 1.0).normalized()]:
+		assert_eq(box.intersect_ray(Vector3.ZERO, direction), Hitbox.MISS, "луч из центра коробки её не задевает: %s" % direction)
+		assert_eq(box.intersect_ray(Vector3(0.45, -0.45, 0.45), direction), Hitbox.MISS, "луч из угла коробки её не задевает: %s" % direction)
+	# Раздутая коробка считается так же: начало луча в полосе толщины удара — тоже «внутри».
+	assert_near(box.intersect_ray(Vector3(0.0, 0.0, -0.6), Vector3.BACK), 0.1, "снаружи точной коробки — попадание")
+	assert_eq(box.intersect_ray(Vector3(0.0, 0.0, -0.6), Vector3.BACK, 0.15), Hitbox.MISS, "внутри раздутой коробки — мимо")
+	# Луч изнутри торса торс не задевает, а что дальше по лучу — задевает.
+	assert_true(_cast(TORSO_CENTER, Vector3.BACK) == null, "луч изнутри торса назад — мимо")
+	var arm: BodyHit = _cast(TORSO_CENTER, Vector3.RIGHT)
+	assert_true(arm != null and arm.part == BodyPart.Part.RIGHT_ARM, "луч изнутри торса вбок попадает в руку")
+
+
+## Игроки проходят друг сквозь друга: глаза нападающего (1.6 м) оказываются внутри головы
+## цели. Раньше любой такой удар — хоть в потолок, хоть себе под ноги — был попаданием
+## в голову на расстоянии 0.
+func test_eyes_inside_the_head_do_not_make_every_hit_a_headshot() -> void:
+	var eye: Vector3 = Vector3(0.0, 1.6, 0.0)
+	var knife_range: float = 1.9
+	var knife_radius: float = 0.15
+	for inflate: float in [0.0, knife_radius]:
+		var up: BodyHit = LAYOUT.intersect_ray(eye, Vector3.UP, knife_range, NO_LIMBS_LOST, inflate)
+		assert_true(up == null, "удар в потолок из чужой головы — мимо (толщина %.2f)" % inflate)
+		var forward: BodyHit = LAYOUT.intersect_ray(eye, Vector3.FORWARD, knife_range, NO_LIMBS_LOST, inflate)
+		assert_true(forward == null, "удар вперёд из чужой головы — мимо (толщина %.2f)" % inflate)
+		var down: BodyHit = LAYOUT.intersect_ray(eye, Vector3.DOWN, knife_range, NO_LIMBS_LOST, inflate)
+		assert_true(down != null and down.part == BodyPart.Part.TORSO, "удар вниз из чужой головы — торс (толщина %.2f)" % inflate)
+		if down != null:
+			assert_near(down.distance, eye.y - (TORSO_CENTER.y + 0.275), "торс начинается под головой")
+	# Глаза не в голове, но в полосе толщины удара вокруг неё: удар в потолок — тоже мимо.
+	var near_eye: Vector3 = Vector3(0.0, 1.6, 0.3)
+	assert_true(LAYOUT.intersect_ray(near_eye, Vector3.UP, knife_range, NO_LIMBS_LOST, knife_radius) == null,
+			"удар в потолок вплотную к чужой голове — мимо")
+
+
+func test_point_blank_chest_aim_hits_the_torso() -> void:
+	# Двое стоят в 30 см друг от друга, удар нацелен в грудь.
+	var eye: Vector3 = Vector3(0.0, 1.6, 0.3)
+	var stab: BodyHit = LAYOUT.intersect_ray(eye, (TORSO_CENTER - eye).normalized(), 1.9, NO_LIMBS_LOST, 0.15)
+	assert_true(stab != null and stab.part == BodyPart.Part.TORSO, "удар в грудь в упор попадает в торс")
+	var shot: BodyHit = LAYOUT.intersect_ray(eye, (TORSO_CENTER - eye).normalized(), 60.0, NO_LIMBS_LOST)
+	assert_true(shot != null and shot.part == BodyPart.Part.TORSO, "выстрел в грудь в упор попадает в торс")
+	# То же в мировых координатах: цель стоит в стороне и повёрнута.
+	var body_position: Vector3 = Vector3(4.0, 0.0, -2.0)
+	var body_yaw: float = deg_to_rad(90.0)
+	var to_world: Transform3D = Transform3D(Basis(Vector3.UP, body_yaw), body_position)
+	var world_eye: Vector3 = to_world * eye
+	var world_hit: BodyHit = LAYOUT.intersect_ray_world(world_eye, (to_world * TORSO_CENTER - world_eye).normalized(),
+			1.9, body_position, body_yaw, NO_LIMBS_LOST, 0.15)
+	assert_true(world_hit != null and world_hit.part == BodyPart.Part.TORSO, "то же для повёрнутой цели")
+
+
+## Удар ножом мимо ближнего игрока (в 10 см от его руки) точно в грудь дальнего. Раньше
+## каждый игрок проверялся отдельно, и раздутая рука ближнего перебивала точное попадание.
+func test_precise_hit_on_the_aimed_player_beats_a_near_miss_of_a_closer_one() -> void:
+	var eye: Vector3 = Vector3(0.0, 1.6, 1.6)
+	var aimed_position: Vector3 = Vector3.ZERO
+	# Ближний стоит сбоку: его левая рука в 10 см от луча.
+	var bystander_position: Vector3 = Vector3(0.465, 0.0, 0.8)
+	var direction: Vector3 = (TORSO_CENTER - eye).normalized()
+	var positions: PackedVector3Array = [bystander_position, aimed_position]
+	var yaws: PackedFloat32Array = [0.0, 0.0]
+	var limbs: PackedInt32Array = [NO_LIMBS_LOST, NO_LIMBS_LOST]
+	# Проверяем саму постановку: по ближнему точный луч мажет, раздутый — попадает раньше.
+	var near_precise: BodyHit = LAYOUT.intersect_ray_world(eye, direction, 1.9, bystander_position, 0.0, NO_LIMBS_LOST)
+	var near_thick: BodyHit = LAYOUT.intersect_ray_world(eye, direction, 1.9, bystander_position, 0.0, NO_LIMBS_LOST, 0.15)
+	var aimed_precise: BodyHit = LAYOUT.intersect_ray_world(eye, direction, 1.9, aimed_position, 0.0, NO_LIMBS_LOST)
+	assert_true(near_precise == null, "точный луч проходит мимо ближнего игрока")
+	assert_true(near_thick != null and aimed_precise != null and near_thick.distance < aimed_precise.distance,
+			"почти-попадание по ближнему случилось бы раньше точного попадания по дальнему")
+	var hit: BodyHit = LAYOUT.intersect_ray_many(eye, direction, 1.9, positions, yaws, limbs, 0.15)
+	assert_true(hit != null and hit.body_index == 1 and hit.part == BodyPart.Part.TORSO,
+			"удар достаётся тому, в кого целились, а не стоящему рядом")
+	if hit != null and aimed_precise != null:
+		assert_near(hit.distance, aimed_precise.distance, "расстояние точного попадания")
+	# Порядок списка ничего не меняет.
+	var swapped: BodyHit = LAYOUT.intersect_ray_many(eye, direction, 1.9,
+			PackedVector3Array([aimed_position, bystander_position]), yaws, limbs, 0.15)
+	assert_true(swapped != null and swapped.body_index == 0, "порядок игроков в списке не важен")
+	# Никого точно не задели — работает толщина удара, ближайший из задетых.
+	var only_near: BodyHit = LAYOUT.intersect_ray_many(eye, direction, 1.9,
+			PackedVector3Array([bystander_position]), PackedFloat32Array([0.0]), PackedInt32Array([NO_LIMBS_LOST]), 0.15)
+	assert_true(only_near != null and only_near.body_index == 0 and only_near.part == BodyPart.Part.LEFT_ARM,
+			"без точного попадания удар задевает ближнего толщиной")
+	# Пуля (без толщины) ближнего не задевает вовсе.
+	var bullet: BodyHit = LAYOUT.intersect_ray_many(eye, direction, 60.0, positions, yaws, limbs)
+	assert_true(bullet != null and bullet.body_index == 1, "пуля летит в того, в кого целились")
+	# Из двух точных попаданий побеждает ближнее.
+	var line: BodyHit = LAYOUT.intersect_ray_many(Vector3(0.0, 1.2, 5.0), Vector3.FORWARD, 60.0,
+			PackedVector3Array([Vector3.ZERO, Vector3(0.0, 0.0, 2.0)]), yaws, limbs)
+	assert_true(line != null and line.body_index == 1, "из стоящих друг за другом пуля попадает в ближнего")
+	assert_true(LAYOUT.intersect_ray_many(eye, Vector3.UP, 1.9, positions, yaws, limbs, 0.15) == null, "удар в потолок — мимо всех")
+	assert_true(LAYOUT.intersect_ray_many(eye, direction, 1.9, PackedVector3Array(), PackedFloat32Array(), PackedInt32Array(), 0.15) == null,
+			"без целей попадать не в кого")
+
+
+func test_sight_points_follow_the_pose() -> void:
+	var standing: PackedVector3Array = LAYOUT.get_sight_points(NO_LIMBS_LOST)
+	assert_eq(standing.size(), 3, "стоя: голова, грудь, колено")
+	assert_true(standing.has(HEAD_CENTER) and standing.has(TORSO_CENTER), "голова и грудь — центры своих коробок")
+	assert_true(standing.has(Vector3(0.0, LEFT_LEG_CENTER.y, 0.0)), "колено — между ногами на высоте их середины")
+	assert_eq(LAYOUT.get_sight_points(BOTH_ARMS | (1 << BodyPart.Part.LEFT_LEG)), standing,
+			"потерянные конечности точек не убирают, пока игрок стоит")
+	var crawling: PackedVector3Array = LAYOUT.get_sight_points(BOTH_LEGS)
+	assert_eq(crawling.size(), 2, "ползком: голова и грудь")
+	for point: Vector3 in crawling:
+		assert_true(point.y < 0.6, "ползущего видно у пола: %s" % point)
 
 
 func test_world_ray_follows_player_position_and_yaw() -> void:

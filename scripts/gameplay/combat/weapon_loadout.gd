@@ -3,6 +3,8 @@ extends RefCounted
 ## Оружие одного игрока: что у него есть и сколько патронов. Чистые правила без узлов:
 ## PlayerWeapons хранит такой объект на сервере и (копию с сервера) на клиенте-владельце.
 ## Номера оружия — номера в ItemSet; пустые руки (кулаки) есть всегда.
+## Здесь же правила смены: круг клавиши Q (next_index, без оружия предателя) и цифровые
+## клавиши (slot_index). Когда оружием можно ударить и когда его можно убрать — WeaponTiming.
 ## По сети хозяину идёт массив to_data(): [owned_mask: int, ammo: PackedInt32Array],
 ## где бит i маски — «оружие i есть», а ammo[i] — патроны оружия i (0 у оружия без патронов).
 
@@ -14,6 +16,8 @@ const MAX_AMMO: int = 999
 const NO_AMMO_COUNTER: int = -1
 ## Сколько полей в массиве to_data().
 const DATA_FIELD_COUNT: int = 2
+## slot_index(): такую клавишу сейчас нажимать бесполезно.
+const NO_SLOT: int = -1
 
 var _items: ItemSet = null
 ## Биты имеющегося оружия по номерам в наборе.
@@ -100,14 +104,28 @@ func can_hold(index: int, limbs_lost: int) -> bool:
 
 
 ## Следующее по порядку набора оружие, которое игрок может держать (клавиша Q).
+## Оружие предателя (нож) в этот круг не входит: его достают только цифрой, иначе предатель
+## с пистолетом не мог бы убрать пистолет, не показав всем нож. С оружия предателя Q убирает
+## его — в руках остаются кулаки.
 ## Возвращает held, если переключаться не на что; EMPTY_HANDS — если и held держать нельзя.
 func next_index(held: int, limbs_lost: int) -> int:
+	var held_weapon: WeaponConfig = _get_weapon(held)
+	if held_weapon != null and held_weapon.traitor_only:
+		return EMPTY_HANDS
 	var count: int = _items.items.size()
 	for offset: int in range(1, count):
 		var index: int = posmod(held + offset, count)
-		if can_hold(index, limbs_lost):
+		if can_hold(index, limbs_lost) and not _get_weapon(index).traitor_only:
 			return index
 	return held if can_hold(held, limbs_lost) else EMPTY_HANDS
+
+
+## Оружие под цифровой клавишей: клавиша N — предмет N-1 набора (1 — кулаки, 2 — пистолет,
+## 3 — нож). NO_SLOT — под этой клавишей не оружие или игрок не может его сейчас держать
+## (нет такого, нет рук).
+func slot_index(slot: int, limbs_lost: int) -> int:
+	var index: int = slot - 1
+	return index if can_hold(index, limbs_lost) else NO_SLOT
 
 
 ## Оружие игрока по порядку набора.

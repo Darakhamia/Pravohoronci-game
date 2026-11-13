@@ -2,10 +2,12 @@ extends "res://tests/scenarios/combat_base.gd"
 ## Сценарий combat_carry: оружие и груз в руках (канистру выдаёт combat_carry_director.gd,
 ## как это делает в игре модуль заданий). Один бот проверяет:
 ## - с грузом атаковать нельзя, а Q его бросает;
-## - оружие, взятое со стойки с грузом в руках, оказывается в руках, когда груз брошен;
-## - без обеих рук груз падает, в руках остаются «кулаки», а пинок работает.
+## - оружие, взятое со стойки с грузом в руках, оказывается в руках, когда груз брошен,
+##   и его ещё нужно достать;
+## - сразу после выстрела груз в руки не идёт: оружие нельзя убрать раньше его паузы;
+## - без обеих рук груз остаётся в руках (взаимодействие от рук не зависит), безрукий
+##   может его бросить, пнуть и взять новый.
 
-const CANISTER: int = 3
 const STAND_AMMO: int = 30
 const STAND_STOP_DISTANCE: float = 1.6
 const BOTH_ARMS: int = (1 << BodyPart.Part.LEFT_ARM) | (1 << BodyPart.Part.RIGHT_ARM)
@@ -49,30 +51,56 @@ func _run() -> void:
 	await wait_seconds(0.5)
 	if not check(me().held_item == CANISTER and not stand.is_available(), "с грузом в руках пистолет не должен попасть в руки"):
 		return
-	# Q бросает груз — в руках оказывается подобранный пистолет, и из него можно стрелять.
-	await tap(&"switch_weapon")
+	# Q бросает груз — в руках оказывается подобранный пистолет. Его достают: выстрел в тот же
+	# миг пропадает, а после времени доставания проходит.
+	look_at_point(me().get_eye_position() + Vector3.BACK * 10.0)
+	me().input.switch_weapon_pressed.emit()
+	me().input.fire_pressed.emit()
 	if not await expect(func() -> bool: return me().held_item == PISTOL, 3.0, "после броска груза в руках не пистолет"):
 		return
-	look_at_point(me().get_eye_position() + Vector3.BACK * 10.0)
+	await wait_drawn()
+	if not check(count_all_attacks(my_id) == 0 and me().weapons.get_weapon_ammo(pistol) == STAND_AMMO,
+			"пистолет выстрелил в тот же миг, как оказался в руках"):
+		return
 	await click(&"fire")
 	if not await expect(func() -> bool:
-		# Патроны спрашиваем по оружию, а не по рукам: сервер тут же снова даёт груз.
+		# Патроны спрашиваем по оружию, а не по рукам: сервер вскоре снова даёт груз.
 		return count_attacks(my_id, PISTOL, AttackEvent.Impact.NONE) == 1 and me().weapons.get_weapon_ammo(pistol) == STAND_AMMO - 1,
 		3.0, "после броска груза пистолет не выстрелил"):
 		return
-	# Сервер снова даёт груз и отнимает обе руки: груз падает, руки пустеют.
-	if not await expect(func() -> bool:
-		return held_history(my_id) == PackedInt32Array([CANISTER, PISTOL, CANISTER, FISTS]),
-		15.0, "руки бота: %s" % var_to_str(held_history(my_id))):
-		return
+	# Сервер снова даёт груз и отнимает обе руки: груз остаётся в руках.
 	if not await expect(func() -> bool: return me().limbs_lost == BOTH_ARMS and me().body.health == HEALTH_AFTER_ARMS,
-			3.0, "после потери рук: маска %d, здоровье %d" % [me().limbs_lost, me().body.health]):
+			15.0, "после потери рук: маска %d, здоровье %d" % [me().limbs_lost, me().body.health]):
 		return
-	if not check(not me().weapons.can_switch() and me().weapons.owns(pistol), "без рук пистолет остаётся, но взять его нельзя"):
+	await wait_seconds(0.6)
+	if not check(held_history(my_id) == PackedInt32Array([CANISTER, PISTOL, CANISTER]) and me().held_item == CANISTER,
+			"без рук груз должен остаться в руках: %s" % var_to_str(held_history(my_id))):
+		return
+	if not check(me().weapons.can_switch() and me().weapons.owns(pistol), "безрукий с грузом должен мочь его бросить, пистолет остаётся его"):
+		return
+	# С грузом по-прежнему не атакуют.
+	await click(&"fire")
+	await wait_seconds(0.6)
+	if not check(count_all_attacks(my_id) == 1, "безрукий атаковал с грузом в руках"):
+		return
+	# Q бросает груз. Пистолет держать нечем: в руках «кулаки», Q и цифра 2 больше ничего не дают.
+	await tap(&"switch_weapon")
+	if not await expect(func() -> bool: return me().held_item == FISTS, 3.0, "безрукий не бросил груз клавишей Q"):
+		return
+	if not check(not me().weapons.can_switch(), "без рук и без груза Q делать нечего"):
+		return
+	await tap_slot(SLOT_PISTOL)
+	await tap(&"switch_weapon")
+	await wait_seconds(0.6)
+	if not check(me().held_item == FISTS, "безрукий взял оружие в руки: %d" % me().held_item):
 		return
 	# Пинок без рук работает.
-	await wait_seconds(0.5)
 	await click(&"fire")
 	if not await expect(func() -> bool: return count_attacks(my_id, FISTS) == 1, 3.0, "пинок без рук не состоялся"):
+		return
+	# Сервер даёт груз ещё раз: безрукий берёт его, как любой другой.
+	if not await expect(func() -> bool:
+		return held_history(my_id) == PackedInt32Array([CANISTER, PISTOL, CANISTER, FISTS, CANISTER]),
+		10.0, "безрукий не получил новый груз: %s" % var_to_str(held_history(my_id))):
 		return
 	check(count_all_attacks(my_id) == 2 and bad_event_count() == 0, "лишние атаки: %d" % count_all_attacks(my_id))

@@ -1,10 +1,11 @@
 extends "res://tests/scenarios/combat_base.gd"
 ## Сценарий combat: бой от начала до конца на настоящем сервере.
-## Bot1 — предатель (флаг сервера): прячется за стеной, потом достаёт нож и убивает.
+## Bot1 — предатель (флаг сервера): прячется за стеной, там достаёт нож (цифрой 3), выходит
+## с ним на глаза и убивает. Из-за стены он не видит ни выстрелов, ни чужих рук.
 ## Bot2 — стрелок: берёт пистолет со стойки, стреляет сквозь стену, по ноге, меняет оружие.
 ## Bot3 — жертва: пробует достать нож и ударить издалека, теряет ногу и погибает.
 ## Каждый бот проверяет то, что должен видеть именно он; серверные правила (темп атак,
-## дальность) дополнительно сторожит combat_director.gd.
+## дальность, время доставания) дополнительно сторожит combat_director.gd.
 
 const TRAITOR_NAME: String = "Bot1"
 const SHOOTER_NAME: String = "Bot2"
@@ -62,7 +63,8 @@ func _check_start() -> bool:
 		return false
 	if not check(weapons.owns(ITEMS.get_item(KNIFE) as WeaponConfig) == is_traitor, "нож должен быть только у предателя"):
 		return false
-	if not check(weapons.can_switch() == is_traitor, "на старте менять оружие может только предатель"):
+	# Нож в круг Q не входит: с одними кулаками (и ножом) Q ничего не делает.
+	if not check(not weapons.can_switch(), "на старте Q никому не должен быть доступен"):
 		return false
 	if not check(weapons.get_held_item().title == "Кулаки" and weapons.get_ammo() == WeaponLoadout.NO_AMMO_COUNTER,
 			"на старте в руках должны быть кулаки без счётчика патронов"):
@@ -78,10 +80,11 @@ func _check_start() -> bool:
 
 func _play_victim() -> bool:
 	var shooter: Player = avatar_named(SHOOTER_NAME)
-	# Экипажу нож не достаётся: Q ничего не меняет.
+	# Экипажу нож не достаётся: ни Q, ни цифра 3 ничего не меняют.
 	await tap(&"switch_weapon")
+	await tap_slot(SLOT_KNIFE)
 	await wait_seconds(0.6)
-	if not check(me().held_item == FISTS and held_history(Net.local_id()).is_empty(), "экипаж сменил оружие клавишей Q"):
+	if not check(me().held_item == FISTS and held_history(Net.local_id()).is_empty(), "экипаж сменил оружие клавишей Q или 3"):
 		return false
 	if not await expect(func() -> bool: return shooter.held_item == PISTOL, 15.0, "стрелок не взял пистолет"):
 		return false
@@ -141,6 +144,10 @@ func _play_shooter() -> bool:
 	if not await _shoot_through_wall():
 		return false
 	if not await _shoot_leg():
+		return false
+	# Ждём, пока предатель выйдет из-за стены с ножом: свой круг оружия показываем при нём.
+	var traitor: Player = avatar_named(TRAITOR_NAME)
+	if not await expect(func() -> bool: return traitor.held_item == KNIFE, 40.0, "стрелок не увидел нож вышедшего предателя"):
 		return false
 	# Q у экипажа ходит по кругу кулаки — пистолет; ножа в круге нет.
 	await tap(&"switch_weapon")
@@ -227,21 +234,32 @@ func _play_traitor() -> bool:
 	if not await expect(func() -> bool: return BodyPart.is_lost(victim.limbs_lost, BodyPart.Part.LEFT_LEG),
 			50.0, "предатель не дождался, пока жертва потеряет ногу"):
 		return false
-	if not check(count_attacks(shooter_id, PISTOL, AttackEvent.Impact.WORLD) >= 1, "предатель не видел выстрелов в стену"):
+	# За стеной не видно и не слышно: ни выстрелов в стену, ни попаданий по ноге, ни кулака.
+	await wait_seconds(0.5)
+	if not check(count_all_attacks(shooter_id) == 0 and count_all_attacks(victim.peer_id) == 0,
+			"предатель за стеной узнал о чужих атаках: стрелка %d, жертвы %d" % [
+			count_all_attacks(shooter_id), count_all_attacks(victim.peer_id)]):
 		return false
 	if not check(me().body.health == PlayerBody.CONFIG.max_health, "выстрелы сквозь стену нанесли урон: %d" % me().body.health):
 		return false
-	# Ждём, пока стрелок покажет свой круг оружия, чтобы матч не кончился раньше.
-	if not await expect(func() -> bool: return held_history(shooter_id) == PackedInt32Array([PISTOL, FISTS, PISTOL]),
-			15.0, "стрелок не сменил оружие дважды"):
-		return false
+	# Q нож не даёт: его достают цифрой. Достаём в укрытии — никто этого не видит.
 	await tap(&"switch_weapon")
-	if not await expect(func() -> bool: return me().held_item == KNIFE, 3.0, "Q не дал предателю нож"):
+	await wait_seconds(0.5)
+	if not check(me().held_item == FISTS, "Q дал предателю нож"):
+		return false
+	if not await draw_weapon(SLOT_KNIFE, KNIFE):
 		return false
 	if not check(me().weapons.get_held_item().title == "Нож" and me().weapons.get_ammo() == WeaponLoadout.NO_AMMO_COUNTER,
 			"в руках предателя должен быть нож без счётчика патронов"):
 		return false
+	if not check(me().weapons.can_switch(), "с ножом в руке Q должен его убирать"):
+		return false
 	if not check(await walk_to(approach, MARK_STOP_DISTANCE, 8.0), "предатель не вышел из укрытия"):
+		return false
+	# На виду: стрелок замечает нож и показывает свой круг оружия — ждём, чтобы матч
+	# не кончился раньше.
+	if not await expect(func() -> bool: return held_history(shooter_id) == PackedInt32Array([PISTOL, FISTS, PISTOL]),
+			30.0, "предатель не увидел, как стрелок дважды сменил оружие: %s" % var_to_str(held_history(shooter_id))):
 		return false
 	# Подходим спереди: сбоку на пути ножа оказалась бы рука, а удар в руку не убивает.
 	var stab_point: Vector3 = victim.global_position - victim.global_basis.z * KNIFE_DISTANCE
@@ -292,17 +310,24 @@ func _check_what_everyone_saw() -> bool:
 		return false
 	if not check(avatar(traitor_id).weapons.get_held_item().title == "Нож", "в руке предателя не виден нож"):
 		return false
-	# Атаки дошли до каждого игрока: и промахи, и попадания.
 	if not check(bad_event_count() == 0, "пришли события атаки, не прошедшие проверку: %d" % bad_event_count()):
 		return false
+	# Атаки дошли до тех, кто их видел: и промахи, и попадания. Предатель всё это время
+	# стоял за стеной и не узнал ни о выстрелах стрелка, ни об ударе жертвы.
 	var wall_shots: int = count_attacks(shooter_id, PISTOL, AttackEvent.Impact.WORLD)
 	var leg_hits: int = count_attacks(shooter_id, PISTOL, AttackEvent.Impact.PLAYER)
-	if not check(wall_shots >= 1 and leg_hits == LEG_SHOTS_NEEDED and count_all_attacks(shooter_id) == wall_shots + leg_hits,
-			"выстрелы стрелка: в стену %d, в игрока %d, всего %d" % [wall_shots, leg_hits, count_all_attacks(shooter_id)]):
-		return false
-	if not check(count_attacks(victim_id, FISTS, AttackEvent.Impact.NONE) == 1 and count_all_attacks(victim_id) == 1,
-			"атаки жертвы: %d" % count_all_attacks(victim_id)):
-		return false
+	if bot_name == TRAITOR_NAME:
+		if not check(count_all_attacks(shooter_id) == 0 and count_all_attacks(victim_id) == 0,
+				"предатель за стеной узнал о чужих атаках: стрелка %d, жертвы %d" % [
+				count_all_attacks(shooter_id), count_all_attacks(victim_id)]):
+			return false
+	else:
+		if not check(wall_shots >= 1 and leg_hits == LEG_SHOTS_NEEDED and count_all_attacks(shooter_id) == wall_shots + leg_hits,
+				"выстрелы стрелка: в стену %d, в игрока %d, всего %d" % [wall_shots, leg_hits, count_all_attacks(shooter_id)]):
+			return false
+		if not check(count_attacks(victim_id, FISTS, AttackEvent.Impact.NONE) == 1 and count_all_attacks(victim_id) == 1,
+				"атаки жертвы: %d" % count_all_attacks(victim_id)):
+			return false
 	if not check(count_attacks(traitor_id, KNIFE, AttackEvent.Impact.PLAYER) == 1 and count_all_attacks(traitor_id) == 1,
 			"атаки предателя: %d" % count_all_attacks(traitor_id)):
 		return false

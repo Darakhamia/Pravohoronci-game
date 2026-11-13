@@ -1,12 +1,18 @@
 extends ScenarioBot
 ## Общая часть сценариев боя (combat*.gd): бот запоминает всё, что видит о каждом аватаре
-## (атаки, предметы в руках), и умеет целиться в часть тела и быстро щёлкать атакой.
+## (атаки, предметы в руках), и умеет целиться в часть тела, быстро щёлкать атакой,
+## выбирать оружие цифрой и перезаходить на сервер зрителем.
 ## Сам сценарием не является: у него нет файла .cfg.
 
 const ITEMS: ItemSet = preload("res://resources/items/item_set.tres")
 const FISTS: int = 0
 const PISTOL: int = 1
 const KNIFE: int = 2
+const CANISTER: int = 3
+## Цифровые клавиши оружия.
+const SLOT_FISTS: int = 1
+const SLOT_PISTOL: int = 2
+const SLOT_KNIFE: int = 3
 ## Любой исход атаки (для count_attacks).
 const ANY_IMPACT: int = -1
 ## Половина быстрого щелчка: клавиша нажата столько же, сколько отпущена. Игра опрашивает
@@ -16,6 +22,14 @@ const CLICK_HALF_SEC: float = 0.06
 const FACING_TOLERANCE: float = 0.08
 ## После остановки аватар ещё доезжает и поворачивается: ждём, прежде чем целиться.
 const SETTLE_SEC: float = 0.5
+## Запас к времени доставания оружия: округление до тика и кадр самого бота.
+const DRAW_MARGIN_SEC: float = 0.15
+## Сколько ждать подтверждения сервера на одно действие.
+const REPLY_SEC: float = 4.0
+## Сколько раз жать атаку, пока сервер её не подтвердит.
+const ATTACK_TRIES: int = 4
+## Взгляд почти вертикально вверх: знак конца сценария (см. signal_finish()), рад.
+const FINISH_SIGNAL_PITCH: float = 1.4
 
 ## Атаки каждого аватара, как их увидел этот бот: peer_id -> список AttackEvent.
 var _attacks: Dictionary[int, Array] = {}
@@ -85,6 +99,78 @@ func click(action: StringName) -> void:
 	await wait_seconds(CLICK_HALF_SEC)
 
 
+## Нажать цифровую клавишу оружия (1 — кулаки, 2 — пистолет, 3 — нож).
+func tap_slot(slot: int) -> void:
+	await tap(PlayerInput.WEAPON_SLOT_ACTIONS[slot - 1])
+
+
+## Выбрать оружие цифрой и дождаться, пока сервер покажет его в руках и его можно будет
+## пустить в ход. Сервер достал оружие не позже, чем бот это увидел, поэтому ждать время
+## доставания от этого момента — с запасом при любой задержке сети.
+func draw_weapon(slot: int, item_index: int) -> bool:
+	await tap_slot(slot)
+	if not await expect(func() -> bool: return me().held_item == item_index, REPLY_SEC,
+			"клавиша %d не дала в руки предмет %d: в руках %d" % [slot, item_index, me().held_item]):
+		return false
+	await wait_drawn()
+	return true
+
+
+## Подождать, пока оружие в руках достанут до конца (см. draw_weapon()).
+func wait_drawn() -> void:
+	var weapon: WeaponConfig = me().weapons.get_held_weapon()
+	await wait_seconds((weapon.draw_seconds if weapon != null else 0.0) + DRAW_MARGIN_SEC)
+
+
+## Жать атаку, пока сервер не подтвердит новую атаку своего игрока (запрос, пришедший
+## раньше срока, сервер молча отбрасывает). false — атаки так и не случилось.
+func attack_until_seen() -> bool:
+	var before: int = count_all_attacks(Net.local_id())
+	for attempt: int in ATTACK_TRIES:
+		await click(&"fire")
+		if await wait_until(func() -> bool: return count_all_attacks(Net.local_id()) > before, REPLY_SEC):
+			return true
+	return false
+
+
+## Выйти с сервера и зайти снова под тем же именем — уже зрителем идущего матча, с новым
+## peer_id и без аватара. База считает обрыв сессии провалом, поэтому на время выхода
+## говорим ей, что уходим сами. Записи о чужих аватарах после этого начинаются заново.
+func leave_and_rejoin() -> bool:
+	_release_all()
+	_is_leaving = true
+	Net.leave()
+	_attacks.clear()
+	_held_history.clear()
+	# Сервер должен успеть заметить выход, иначе имя ещё занято.
+	await wait_seconds(0.5)
+	var port: int = CmdArgs.get_int("--port", Net.DEFAULT_PORT, CmdArgs.MIN_PORT, CmdArgs.MAX_PORT)
+	var error: Error = Net.join_server(SERVER_ADDRESS, port, bot_name)
+	if not check(error == OK, "повторный вход: Net.join_server вернул %s" % error_string(error)):
+		return false
+	if not await expect(Net.is_joined, CONNECT_DEADLINE_SEC, "сервер не пустил обратно"):
+		return false
+	_is_leaving = false
+	if not await expect(func() -> bool: return world.current_map != null and Game.state == Game.State.MATCH,
+			AVATARS_DEADLINE_SEC, "вернувшийся не получил карту идущего матча"):
+		return false
+	step("вернулся зрителем")
+	return true
+
+
+## Знак серверному помощнику combat_finish_director.gd: сценарий закончен, пора в лобби.
+## Бот смотрит почти вертикально вверх (взгляд живого игрока сервер знает всегда).
+func signal_finish() -> void:
+	step("сценарий пройден, подаю знак серверу")
+	me().input.pitch = FINISH_SIGNAL_PITCH
+
+
+## Сервер вернул всех в лобби и убрал карту.
+func expect_lobby(timeout_sec: float) -> bool:
+	return await expect(func() -> bool: return Game.state == Game.State.LOBBY and world.current_map == null,
+			timeout_sec, "сервер не вернул игроков в лобби")
+
+
 ## Расстояние между двумя аватарами по горизонтали.
 func flat_distance(from: Vector3, to: Vector3) -> float:
 	return Vector2(from.x - to.x, from.z - to.z).length()
@@ -96,6 +182,9 @@ func check_no_private_leaks() -> bool:
 		if peer_id == Net.local_id():
 			continue
 		var other: Player = avatar(peer_id)
+		# Зритель, вошедший посреди матча, — без аватара.
+		if other == null:
+			continue
 		var other_name: String = Net.get_player_name(peer_id)
 		if not check(other.weapons.get_owned_weapons().size() == 1, "боту известно оружие игрока %s" % other_name):
 			return false

@@ -9,8 +9,11 @@ signal sampled(direction: Vector2, yaw: float, pitch: float)
 signal jump_pressed
 ## Клиент-владелец: нажата атака (выстрел или удар).
 signal fire_pressed
-## Клиент-владелец: нажата смена оружия.
+## Клиент-владелец: нажата смена оружия по кругу (Q).
 signal switch_weapon_pressed
+## Клиент-владелец: нажата цифровая клавиша оружия; slot — её номер с единицы
+## (1 — кулаки, 2 — пистолет, 3 — нож: порядок набора PlayerWeapons.ITEMS).
+signal weapon_slot_pressed(slot: int)
 ## Клиент-владелец: нажат саботаж.
 signal sabotage_pressed
 ## Клиент-владелец: клавишу действия нажали (true) или отпустили (false).
@@ -20,6 +23,8 @@ signal interact_changed(pressed: bool)
 const MAX_PITCH: float = deg_to_rad(89.0)
 ## Сервер: ввод старше этого считается отсутствующим (клиент завис или пропал).
 const STALE_AFTER_MSEC: int = 300
+## Действия цифровых клавиш оружия по порядку: клавиша N — действие номер N - 1.
+const WEAPON_SLOT_ACTIONS: Array[StringName] = [&"weapon_slot_1", &"weapon_slot_2", &"weapon_slot_3"]
 
 ## Углы взгляда. У владельца живые (камера берёт их сразу), на сервере — последние принятые.
 var yaw: float = 0.0
@@ -53,6 +58,9 @@ func _physics_process(_delta: float) -> void:
 			fire_pressed.emit()
 		if Input.is_action_just_pressed(&"switch_weapon"):
 			switch_weapon_pressed.emit()
+		for index: int in WEAPON_SLOT_ACTIONS.size():
+			if Input.is_action_just_pressed(WEAPON_SLOT_ACTIONS[index]):
+				weapon_slot_pressed.emit(index + 1)
 		if Input.is_action_just_pressed(&"sabotage"):
 			sabotage_pressed.emit()
 	# Пауза отпускает клавишу действия: удержание не должно продолжаться под меню.

@@ -19,7 +19,7 @@ enum Status { OFFLINE, CONNECTING, JOINED, SERVER }
 
 const DEFAULT_PORT: int = 7777
 const MAX_PLAYERS: int = 8
-const PROTOCOL_VERSION: int = 3
+const PROTOCOL_VERSION: int = 4
 const SERVER_ID: int = 1
 
 ## Соединений принимаем больше, чем игроков: лишнему нужно успеть объяснить отказ.

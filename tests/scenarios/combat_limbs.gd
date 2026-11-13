@@ -17,6 +17,8 @@ const MARK_STOP_DISTANCE: float = 0.4
 ## С такого расстояния разброс пистолета меньше половины толщины руки.
 const ARM_SHOT_DISTANCE: float = 3.5
 const KICK_STOP_DISTANCE: float = 1.0
+## С такого расстояния стрелок добивает цель в голову.
+const HEAD_SHOT_DISTANCE: float = 3.0
 const SHOTS_PER_ARM: int = 2
 const MAX_SHOTS_PER_ARM: int = 4
 const MAX_TRIES: int = 3
@@ -81,6 +83,15 @@ func _play_shooter() -> bool:
 			"стрелок не получил пинок: здоровье %d" % me().body.health):
 		return false
 	if not check(count_attacks(target_id, FISTS, AttackEvent.Impact.PLAYER) == 1, "стрелок не видел события пинка"):
+		return false
+	# Цель подошла вплотную, а игроки проходят друг сквозь друга: глаза стрелка могут
+	# оказаться в чужой голове, и тогда в голову не попасть. Отходим на пару шагов.
+	var away: Vector3 = me().position - target.position
+	away.y = 0.0
+	if away.length() < 0.1:
+		away = Vector3.RIGHT
+	if not check(await walk_to(target.position + away.normalized() * HEAD_SHOT_DISTANCE, MARK_STOP_DISTANCE, 10.0),
+			"стрелок не отошёл от цели"):
 		return false
 	# Выстрел в голову: у цели 40 здоровья, голова — 25 * 2.
 	await wait_seconds(SETTLE_SEC)

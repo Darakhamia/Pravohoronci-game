@@ -20,3 +20,6 @@ reveal_role_on_eject = true
 sabotage_countdown_seconds = 45.0
 sabotage_cooldown_seconds = 60.0
 sabotage_first_delay_seconds = 30.0
+attack_lock_seconds = 5.0
+perception_near_radius = 2.5
+perception_sight_range = 45.0

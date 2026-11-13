@@ -11,5 +11,6 @@ kind = 1
 damage = 25
 attack_range = 60.0
 attack_interval = 0.35
+draw_seconds = 0.35
 spread_degrees = 0.6
 uses_ammo = true

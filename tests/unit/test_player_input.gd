@@ -93,5 +93,24 @@ func test_jump_is_consumed_once() -> void:
 	input.free()
 
 
+## Цифровые клавиши оружия: 1, 2, 3 — по порядку набора предметов (кулаки, пистолет, нож).
+func test_weapon_slot_actions_are_bound_to_number_keys() -> void:
+	var keys: Array[Key] = [KEY_1, KEY_2, KEY_3]
+	assert_eq(PlayerInput.WEAPON_SLOT_ACTIONS.size(), keys.size(), "клавиш оружия три")
+	for index: int in keys.size():
+		var action: StringName = PlayerInput.WEAPON_SLOT_ACTIONS[index]
+		assert_eq(action, StringName("weapon_slot_%d" % (index + 1)), "имя действия клавиши %d" % (index + 1))
+		if not InputMap.has_action(action):
+			assert_true(false, "в project.godot нет действия %s" % action)
+			continue
+		var events: Array[InputEvent] = InputMap.action_get_events(action)
+		assert_eq(events.size(), 1, "у %s одна клавиша" % action)
+		var key: InputEventKey = events[0] as InputEventKey if events.size() == 1 else null
+		assert_true(key != null and key.physical_keycode == keys[index], "%s — клавиша %d" % [action, index + 1])
+	var weapons: Array[ItemConfig] = PlayerWeapons.ITEMS.items
+	for index: int in keys.size():
+		assert_true(weapons[index] is WeaponConfig, "под клавишей %d в наборе лежит оружие" % (index + 1))
+
+
 func _assert_direction_near(actual: Vector2, expected: Vector2, message: String) -> void:
 	assert_true(actual.is_equal_approx(expected), "%s: получено %s, ожидалось около %s" % [message, actual, expected])

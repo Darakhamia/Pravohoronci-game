@@ -4,9 +4,12 @@ extends CharacterBody3D
 ## и плавно показывают. Узел называется по id владельца.
 ## Игроки проходят друг сквозь друга: слой players, в маске только world.
 ##
-## Всем пирам реплицируется то, что видно в мире: где игрок, жив ли он, каких конечностей
-## нет и что у него в руках. Личное (здоровье, патроны) сервер шлёт одному хозяину:
-## части игрока вызывают send_private(), а сам пакет отправляет World.
+## Всем пирам реплицируется то, что видно в мире: где игрок, жив ли он и каких конечностей
+## нет. Предмет в руках (held_item) в синхронизатор не входит: по ножу в руке узнают
+## предателя, поэтому сервер рассказывает о нём через World только тем, кто игрока замечает
+## (Perception); остальные помнят то, что видели в последний раз. Так же расходятся события
+## аватара (атака). Личное (здоровье, патроны) сервер шлёт одному хозяину: части игрока
+## вызывают send_private(), а сам пакет отправляет World.
 ## После смерти узел не удаляется до конца матча: он лежит телом (Life.CORPSE), а после
 ## собрания или изгнания становится невидимым (Life.GONE).
 
@@ -14,19 +17,20 @@ extends CharacterBody3D
 signal life_changed(new_life: Life)
 ## Все пиры: изменился набор потерянных конечностей (биты BodyPart.bit()).
 signal limbs_changed(mask: int)
-## Все пиры: в руках другой предмет (номер в PlayerWeapons.ITEMS).
+## Все пиры: в руках другой предмет (номер в PlayerWeapons.ITEMS). На клиенте — когда
+## об этом рассказал сервер, то есть когда свой игрок это заметил.
 signal held_item_changed(item_id: int)
 ## Сервер: личное сообщение хозяину аватара — его отправляет World.
 signal private_sent(kind: Private, data: Array)
-## Сервер: событие, которое видят все игроки, — его рассылает World.
+## Сервер: событие аватара — World рассылает его тем, кто замечает игрока или место события.
 signal event_sent(kind: Event, data: Array)
 ## Клиенты: пришло событие этого аватара (эффекты выстрела и удара).
 signal event_received(kind: Event, data: Array)
 
 enum Life { ALIVE, CORPSE, GONE }
 ## Личные сообщения сервера хозяину аватара.
-enum Private { VITALS, LOADOUT, LOOK }
-## События аватара, которые видят все.
+enum Private { VITALS, LOADOUT, LOOK, ATTACK_LOCK }
+## События аватара: их получают те, кто замечает игрока или место события (Perception).
 enum Event { ATTACK }
 
 const MOVEMENT: PlayerMovementConfig = preload("res://resources/player/player_movement.tres")
@@ -62,7 +66,9 @@ var limbs_lost: int = 0:
 			return
 		limbs_lost = value
 		limbs_changed.emit(limbs_lost)
-## Предмет в руках: номер в PlayerWeapons.ITEMS. Меняет сервер (PlayerWeapons).
+## Предмет в руках: номер в PlayerWeapons.ITEMS. Меняет сервер (PlayerWeapons). Клиент
+## знает то, что сервер рассказал ему последним (receive_held_item()); пока не рассказал —
+## пустые руки.
 var held_item: int = PlayerWeapons.EMPTY_HANDS:
 	set(value):
 		if value == held_item:
@@ -235,7 +241,7 @@ func send_private(kind: Private, data: Array) -> void:
 		private_sent.emit(kind, data)
 
 
-## Сервер: разослать всем игрокам событие этого аватара.
+## Сервер: разослать событие этого аватара тем, кто его замечает (решает World).
 func send_event(kind: Event, data: Array) -> void:
 	if Net.is_server():
 		event_sent.emit(kind, data)
@@ -253,12 +259,32 @@ func receive_private(kind: int, data: Array) -> void:
 			if data.size() == 1 and data[0] is float:
 				input.yaw = PlayerInput.sanitize_yaw(data[0] as float)
 				input.pitch = 0.0
+		Private.ATTACK_LOCK:
+			if data.size() == 1 and data[0] is float:
+				weapons.apply_attack_lock(data[0] as float)
 
 
 ## Клиенты: событие аватара с сервера. Вызывает World.
 func receive_event(kind: int, data: Array) -> void:
 	if Event.values().has(kind):
 		event_received.emit(kind as Event, data)
+
+
+## Клиенты: сервер рассказал, что у этого игрока в руках. Вызывает World.
+## Номер, которого нет в наборе предметов, отбрасывается.
+func receive_held_item(item_id: int) -> void:
+	if not Net.is_server() and PlayerWeapons.ITEMS.get_item(item_id) != null:
+		held_item = item_id
+
+
+## Все пиры: точки, по которым другие решают, виден ли этот игрок (голова, грудь, колено),
+## в мировых координатах. Сервер проверяет ими правило Perception.
+func get_sight_points() -> PackedVector3Array:
+	var points: PackedVector3Array = PlayerBody.HITBOXES.get_sight_points(limbs_lost)
+	var to_world: Transform3D = Transform3D(Basis(Vector3.UP, rotation.y), global_position)
+	for index: int in points.size():
+		points[index] = to_world * points[index]
+	return points
 
 
 ## Клиент: пришёл новый снимок состояния.

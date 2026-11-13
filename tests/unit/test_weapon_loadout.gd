@@ -1,6 +1,6 @@
 extends TestCase
-## Правила оружия игрока: что выдаётся по роли, смена по Q, подбор, патроны, потерянные
-## руки, двуручное оружие и проверка личного сообщения LOADOUT на клиенте.
+## Правила оружия игрока: что выдаётся по роли, смена по Q и цифрами, подбор, патроны,
+## потерянные руки, двуручное оружие и проверка личных сообщений на клиенте.
 
 const ITEMS: ItemSet = preload("res://resources/items/item_set.tres")
 const FISTS: int = 0
@@ -44,14 +44,47 @@ func test_switch_cycles_owned_weapons_in_set_order() -> void:
 	crew.give(PISTOL, 3)
 	assert_eq(crew.next_index(FISTS, NO_LIMBS_LOST), PISTOL, "кулаки -> пистолет")
 	assert_eq(crew.next_index(PISTOL, NO_LIMBS_LOST), FISTS, "пистолет -> кулаки: ножа у экипажа нет")
+	assert_eq(crew.next_index(CANISTER, NO_LIMBS_LOST), FISTS, "с груза — на первое оружие по кругу")
+
+
+## Нож в круг Q не входит: иначе предатель с пистолетом не мог бы убрать пистолет,
+## не показав всем нож (кулаки -> пистолет -> нож -> кулаки).
+func test_switch_never_shows_the_traitor_weapon() -> void:
 	var traitor: WeaponLoadout = _make(Game.Role.TRAITOR)
-	assert_eq(traitor.next_index(FISTS, NO_LIMBS_LOST), KNIFE, "кулаки -> нож")
-	assert_eq(traitor.next_index(KNIFE, NO_LIMBS_LOST), FISTS, "нож -> кулаки")
+	assert_eq(traitor.next_index(FISTS, NO_LIMBS_LOST), FISTS, "с одними кулаками и ножом Q ничего не делает")
+	assert_eq(traitor.next_index(KNIFE, NO_LIMBS_LOST), FISTS, "нож -> кулаки: Q убирает нож")
 	traitor.give(PISTOL, 1)
 	assert_eq(traitor.next_index(FISTS, NO_LIMBS_LOST), PISTOL, "кулаки -> пистолет")
-	assert_eq(traitor.next_index(PISTOL, NO_LIMBS_LOST), KNIFE, "пистолет -> нож")
-	assert_eq(traitor.next_index(KNIFE, NO_LIMBS_LOST), FISTS, "нож -> кулаки: груз в круг не входит")
-	assert_eq(traitor.next_index(CANISTER, NO_LIMBS_LOST), FISTS, "с груза — на первое оружие по кругу")
+	assert_eq(traitor.next_index(PISTOL, NO_LIMBS_LOST), FISTS, "пистолет -> кулаки, а не нож")
+	assert_eq(traitor.next_index(KNIFE, NO_LIMBS_LOST), FISTS, "нож -> кулаки и с пистолетом")
+	assert_eq(traitor.next_index(CANISTER, NO_LIMBS_LOST), FISTS, "с груза — на кулаки, не на нож")
+	var held: int = FISTS
+	for press: int in 6:
+		held = traitor.next_index(held, NO_LIMBS_LOST)
+		assert_true(held != KNIFE, "нажатие Q номер %d показало нож" % (press + 1))
+
+
+func test_number_keys_select_owned_weapons_directly() -> void:
+	var crew: WeaponLoadout = _make(Game.Role.CREW)
+	assert_eq(crew.slot_index(1, NO_LIMBS_LOST), FISTS, "1 — кулаки")
+	assert_eq(crew.slot_index(2, NO_LIMBS_LOST), WeaponLoadout.NO_SLOT, "2 — пистолета ещё нет")
+	assert_eq(crew.slot_index(3, NO_LIMBS_LOST), WeaponLoadout.NO_SLOT, "3 — ножа у экипажа нет")
+	crew.give(PISTOL, 3)
+	assert_eq(crew.slot_index(2, NO_LIMBS_LOST), PISTOL, "2 — пистолет")
+	assert_eq(crew.slot_index(2, ONE_ARM_LOST), PISTOL, "пистолет берут и одной рукой")
+	assert_eq(crew.slot_index(2, BOTH_ARMS_LOST), WeaponLoadout.NO_SLOT, "без рук пистолет не взять")
+	assert_eq(crew.slot_index(1, BOTH_ARMS_LOST), FISTS, "без рук остаются «кулаки»")
+	var traitor: WeaponLoadout = _make(Game.Role.TRAITOR)
+	assert_eq(traitor.slot_index(3, NO_LIMBS_LOST), KNIFE, "3 — нож предателя")
+	assert_eq(traitor.slot_index(3, BOTH_ARMS_LOST), WeaponLoadout.NO_SLOT, "без рук нож не взять")
+	for slot: int in [0, -1, 4, 5, 99]:
+		assert_eq(traitor.slot_index(slot, NO_LIMBS_LOST), WeaponLoadout.NO_SLOT, "клавиша %d — не оружие" % slot)
+	var items: ItemSet = _make_rifle_set()
+	var rifleman: WeaponLoadout = WeaponLoadout.new(items)
+	rifleman.reset(Game.Role.CREW)
+	rifleman.give(RIFLE, 10)
+	assert_eq(rifleman.slot_index(2, NO_LIMBS_LOST), RIFLE, "двуручное берут двумя руками")
+	assert_eq(rifleman.slot_index(2, ONE_ARM_LOST), WeaponLoadout.NO_SLOT, "двуручное одной рукой не взять")
 
 
 func test_give_adds_weapon_then_ammo() -> void:
@@ -210,6 +243,30 @@ func test_player_weapons_apply_loadout_validates_and_signals() -> void:
 	assert_eq(signals.size(), 1, "негодные сообщения сигнала не дают")
 	assert_eq(weapons.get_weapon_ammo(pistol), 6, "негодные сообщения ничего не меняют")
 	assert_true(not weapons.owns(null), "пустого оружия ни у кого нет")
+	weapons.free()
+
+
+func test_player_weapons_attack_lock_ticks_down_on_the_owner() -> void:
+	var weapons: PlayerWeapons = PlayerWeapons.new()
+	var signals: Array[int] = []
+	weapons.attack_lock_changed.connect(func() -> void: signals.append(1))
+	assert_near(weapons.get_attack_lock_left(), 0.0, "до сообщения сервера запрета нет")
+	weapons.apply_attack_lock(5.0)
+	assert_near(weapons.get_attack_lock_left(), 5.0, "сервер сообщил длину запрета")
+	assert_eq(signals.size(), 1, "начало запрета — сигнал")
+	weapons._process(1.5)
+	assert_near(weapons.get_attack_lock_left(), 3.5, "запрет идёт на клиенте сам")
+	assert_eq(signals.size(), 1, "пока запрет идёт, сигналов нет")
+	weapons._process(10.0)
+	assert_near(weapons.get_attack_lock_left(), 0.0, "ниже нуля запрет не уходит")
+	assert_eq(signals.size(), 2, "конец запрета — сигнал")
+	for bad: float in [NAN, INF, -1.0, PlayerWeapons.MAX_ATTACK_LOCK_SEC + 1.0]:
+		weapons.apply_attack_lock(bad)
+		assert_near(weapons.get_attack_lock_left(), 0.0, "негодная длина запрета отброшена: %s" % bad)
+	assert_eq(signals.size(), 2, "негодные сообщения сигнала не дают")
+	weapons.apply_attack_lock(2.0)
+	weapons.apply_attack_lock(0.0)
+	assert_near(weapons.get_attack_lock_left(), 0.0, "сервер может снять запрет")
 	weapons.free()
 
 
