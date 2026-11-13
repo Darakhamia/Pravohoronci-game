@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/effects/impact_flash.gd" id="1_flash"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_flash"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(1, 0.92, 0.3, 1)
+
+[sub_resource type="SphereMesh" id="SphereMesh_flash"]
+material = SubResource("StandardMaterial3D_flash")
+radius = 0.07
+height = 0.14
+radial_segments = 12
+rings = 6
+
+[node name="ImpactFlash" type="MeshInstance3D"]
+top_level = true
+cast_shadow = 0
+mesh = SubResource("SphereMesh_flash")
+script = ExtResource("1_flash")

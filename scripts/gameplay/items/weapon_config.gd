@@ -15,6 +15,9 @@ enum Kind { MELEE, HITSCAN }
 @export_range(0.05, 60.0, 0.05) var attack_interval: float = 0.05
 ## Разброс выстрела, градусы (половина угла конуса).
 @export_range(0.0, 45.0, 0.1) var spread_degrees: float = 0.0
+## Толщина удара, м: на столько раздуваются хитбоксы цели. У пули 0, у кулака и ножа
+## больше — в ближнем бою не нужно целиться в пиксель.
+@export_range(0.0, 1.0, 0.01) var hit_radius: float = 0.0
 ## Нужны обе руки: без одной руки такое оружие держать нельзя.
 @export var two_handed: bool = false
 ## Тратит ли патроны.

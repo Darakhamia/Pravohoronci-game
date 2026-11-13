@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/gameplay/interaction/player_interactor.gd" id="6_interactor"]
 [ext_resource type="Script" path="res://scripts/gameplay/interaction/corpse_report.gd" id="7_corpse"]
 [ext_resource type="PackedScene" path="res://scenes/characters/viewmodel.tscn" id="8_viewmodel"]
+[ext_resource type="PackedScene" path="res://scenes/effects/attack_effects.tscn" id="9_effects"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.35
@@ -76,3 +77,5 @@ script = ExtResource("6_interactor")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
 script = ExtResource("7_corpse")
 prompt = "Сообщить о теле"
+
+[node name="AttackEffects" parent="." instance=ExtResource("9_effects")]

@@ -289,12 +289,10 @@ func _show_life() -> void:
 		_viewmodel.visible = life == Life.ALIVE
 
 
-## Клиент: событие аватара — взмах или отдача при атаке.
+## Клиент: атака своего игрока — отдача или взмах рук от первого лица.
+## Анимацию тела и вспышки для всех показывает узел AttackEffects.
 func _on_event_received(kind: Event, _data: Array) -> void:
-	if kind != Event.ATTACK:
-		return
-	_visuals.play_attack()
-	if _viewmodel != null:
+	if kind == Event.ATTACK and _viewmodel != null:
 		_viewmodel.play_attack()
 
 

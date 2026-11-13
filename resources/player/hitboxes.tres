@@ -1,0 +1,70 @@
+[gd_resource type="Resource" script_class="HitboxLayout" format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/combat/hitbox_layout.gd" id="1_layout"]
+[ext_resource type="Script" path="res://scripts/gameplay/combat/hitbox.gd" id="2_hitbox"]
+
+[sub_resource type="Resource" id="Hitbox_stand_head"]
+script = ExtResource("2_hitbox")
+part = 0
+center = Vector3(0, 1.62, 0)
+size = Vector3(0.36, 0.34, 0.34)
+
+[sub_resource type="Resource" id="Hitbox_stand_torso"]
+script = ExtResource("2_hitbox")
+part = 1
+center = Vector3(0, 1.175, 0)
+size = Vector3(0.44, 0.55, 0.28)
+
+[sub_resource type="Resource" id="Hitbox_stand_left_arm"]
+script = ExtResource("2_hitbox")
+part = 2
+center = Vector3(-0.3, 1.12, 0)
+size = Vector3(0.13, 0.6, 0.13)
+
+[sub_resource type="Resource" id="Hitbox_stand_right_arm"]
+script = ExtResource("2_hitbox")
+part = 3
+center = Vector3(0.3, 1.12, 0)
+size = Vector3(0.13, 0.6, 0.13)
+
+[sub_resource type="Resource" id="Hitbox_stand_left_leg"]
+script = ExtResource("2_hitbox")
+part = 4
+center = Vector3(-0.11, 0.46, 0)
+size = Vector3(0.17, 0.92, 0.17)
+
+[sub_resource type="Resource" id="Hitbox_stand_right_leg"]
+script = ExtResource("2_hitbox")
+part = 5
+center = Vector3(0.11, 0.46, 0)
+size = Vector3(0.17, 0.92, 0.17)
+
+[sub_resource type="Resource" id="Hitbox_crawl_head"]
+script = ExtResource("2_hitbox")
+part = 0
+center = Vector3(0, 0.45, -0.2)
+size = Vector3(0.36, 0.34, 0.34)
+
+[sub_resource type="Resource" id="Hitbox_crawl_torso"]
+script = ExtResource("2_hitbox")
+part = 1
+center = Vector3(0, 0.27, 0.2)
+size = Vector3(0.44, 0.28, 0.55)
+rotation_degrees = Vector3(15, 0, 0)
+
+[sub_resource type="Resource" id="Hitbox_crawl_left_arm"]
+script = ExtResource("2_hitbox")
+part = 2
+center = Vector3(-0.3, 0.12, -0.2)
+size = Vector3(0.13, 0.13, 0.6)
+
+[sub_resource type="Resource" id="Hitbox_crawl_right_arm"]
+script = ExtResource("2_hitbox")
+part = 3
+center = Vector3(0.3, 0.12, -0.2)
+size = Vector3(0.13, 0.13, 0.6)
+
+[resource]
+script = ExtResource("1_layout")
+standing = Array[ExtResource("2_hitbox")]([SubResource("Hitbox_stand_head"), SubResource("Hitbox_stand_torso"), SubResource("Hitbox_stand_left_arm"), SubResource("Hitbox_stand_right_arm"), SubResource("Hitbox_stand_left_leg"), SubResource("Hitbox_stand_right_leg")])
+crawling = Array[ExtResource("2_hitbox")]([SubResource("Hitbox_crawl_head"), SubResource("Hitbox_crawl_torso"), SubResource("Hitbox_crawl_left_arm"), SubResource("Hitbox_crawl_right_arm")])

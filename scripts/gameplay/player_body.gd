@@ -10,6 +10,8 @@ signal vitals_changed
 signal damaged(part: BodyPart.Part, amount: int, attacker_id: int)
 
 const CONFIG: BodyConfig = preload("res://resources/player/body_config.tres")
+## Хитбоксы частей тела: коробки в координатах игрока, без физики.
+const HITBOXES: HitboxLayout = preload("res://resources/player/hitboxes.tres")
 
 ## Общее здоровье. Знают сервер и хозяин аватара.
 var health: int = CONFIG.max_health
@@ -80,6 +82,14 @@ func can_jump() -> bool:
 
 func get_eye_height() -> float:
 	return CONFIG.crawl_eye_height if is_crawling() else CONFIG.stand_eye_height
+
+
+## Все пиры: куда луч попадает в этого игрока; null — мимо или дальше max_distance.
+## Луч — в мировых координатах, direction — единичный вектор; inflate — толщина удара.
+## Учитывает позу (стоит или ползёт) и потерянные конечности. Стены не проверяет.
+func intersect_ray(origin: Vector3, direction: Vector3, max_distance: float, inflate: float = 0.0) -> BodyHit:
+	return HITBOXES.intersect_ray_world(origin, direction, max_distance,
+			_player.global_position, _player.rotation.y, _player.limbs_lost, inflate)
 
 
 func _send_vitals() -> void:
