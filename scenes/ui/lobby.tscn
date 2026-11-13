@@ -1,8 +1,8 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://rqjmt6i1ftiy"]
 
-[ext_resource type="Script" path="res://scripts/ui/lobby.gd" id="1_lobby"]
+[ext_resource type="Script" uid="uid://df68ndl1brmvf" path="res://scripts/ui/lobby.gd" id="1_lobby"]
 
-[node name="Lobby" type="Control"]
+[node name="Lobby" type="Control" unique_id=2043827622]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -11,7 +11,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_lobby")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="ColorRect" parent="." unique_id=396670322]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -20,7 +20,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.07, 0.08, 0.16, 1)
 
-[node name="Center" type="CenterContainer" parent="."]
+[node name="Center" type="CenterContainer" parent="." unique_id=2057478315]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -28,39 +28,39 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Layout" type="VBoxContainer" parent="Center"]
+[node name="Layout" type="VBoxContainer" parent="Center" unique_id=1032441532]
 layout_mode = 2
 theme_override_constants/separation = 32
 
-[node name="Title" type="Label" parent="Center/Layout"]
+[node name="Title" type="Label" parent="Center/Layout" unique_id=1877104679]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.82, 0.25, 1)
 theme_override_font_sizes/font_size = 80
 text = "Лобби"
 horizontal_alignment = 1
 
-[node name="Panel" type="PanelContainer" parent="Center/Layout"]
+[node name="Panel" type="PanelContainer" parent="Center/Layout" unique_id=1050798251]
 custom_minimum_size = Vector2(840, 0)
 layout_mode = 2
 
-[node name="Margin" type="MarginContainer" parent="Center/Layout/Panel"]
+[node name="Margin" type="MarginContainer" parent="Center/Layout/Panel" unique_id=1878428516]
 layout_mode = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_top = 32
 theme_override_constants/margin_right = 40
 theme_override_constants/margin_bottom = 32
 
-[node name="Content" type="VBoxContainer" parent="Center/Layout/Panel/Margin"]
+[node name="Content" type="VBoxContainer" parent="Center/Layout/Panel/Margin" unique_id=1680682577]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="CountLabel" type="Label" parent="Center/Layout/Panel/Margin/Content"]
+[node name="CountLabel" type="Label" parent="Center/Layout/Panel/Margin/Content" unique_id=770125985]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 26
 text = "Игроки"
 
-[node name="PlayerList" type="ItemList" parent="Center/Layout/Panel/Margin/Content"]
+[node name="PlayerList" type="ItemList" parent="Center/Layout/Panel/Margin/Content" unique_id=610683296]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 420)
 layout_mode = 2
@@ -68,7 +68,7 @@ focus_mode = 0
 mouse_filter = 2
 theme_override_font_sizes/font_size = 32
 
-[node name="HintLabel" type="Label" parent="Center/Layout/Panel/Margin/Content"]
+[node name="HintLabel" type="Label" parent="Center/Layout/Panel/Margin/Content" unique_id=1466912843]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 84)
 layout_mode = 2
@@ -77,11 +77,11 @@ horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 3
 
-[node name="Buttons" type="HBoxContainer" parent="Center/Layout/Panel/Margin/Content"]
+[node name="Buttons" type="HBoxContainer" parent="Center/Layout/Panel/Margin/Content" unique_id=7330508]
 layout_mode = 2
 theme_override_constants/separation = 24
 
-[node name="LeaveButton" type="Button" parent="Center/Layout/Panel/Margin/Content/Buttons"]
+[node name="LeaveButton" type="Button" parent="Center/Layout/Panel/Margin/Content/Buttons" unique_id=1949483185]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
@@ -89,7 +89,7 @@ size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 30
 text = "Выйти"
 
-[node name="StartButton" type="Button" parent="Center/Layout/Panel/Margin/Content/Buttons"]
+[node name="StartButton" type="Button" parent="Center/Layout/Panel/Margin/Content/Buttons" unique_id=783891828]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 72)
 layout_mode = 2

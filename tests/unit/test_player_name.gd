@@ -46,6 +46,17 @@ func test_sanitize_removes_control_and_invisible() -> void:
 	assert_eq(PlayerName.sanitize(char(RIGHT_TO_LEFT_OVERRIDE) + "ясаВ"), "ясаВ", "RLO")
 
 
+## Символы, которые не видны на экране: с ними имя выглядело бы как чужое или как пустое.
+func test_sanitize_removes_every_invisible_character() -> void:
+	var invisible: PackedInt32Array = [
+		0x00AD, 0x034F, 0x061C, 0x115F, 0x1160, 0x17B4, 0x180E, 0x200B, 0x200D, 0x200F, 0x202E,
+		0x2060, 0x2066, 0x2800, 0x3164, 0xFE0F, 0xFEFF, 0xFFA0, 0xFFF9, 0xE0020,
+	]
+	for code: int in invisible:
+		assert_eq(PlayerName.sanitize("Ва" + char(code) + "ся"), "Вася", "U+%04X внутри имени" % code)
+		assert_eq(PlayerName.sanitize(char(code) + char(code)), PlayerName.FALLBACK, "имя из одних U+%04X" % code)
+
+
 func test_sanitize_collapses_whitespace() -> void:
 	assert_eq(PlayerName.sanitize("  Вася  "), "Вася", "пробелы по краям")
 	assert_eq(PlayerName.sanitize("Вася     Пупкин"), "Вася Пупкин", "несколько пробелов подряд")

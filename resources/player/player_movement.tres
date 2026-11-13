@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="PlayerMovementConfig" format=3]
+[gd_resource type="Resource" script_class="PlayerMovementConfig" format=3 uid="uid://38hy1q78p5f1"]
 
-[ext_resource type="Script" path="res://scripts/gameplay/player_movement_config.gd" id="1_config"]
+[ext_resource type="Script" uid="uid://drs364eru1sox" path="res://scripts/gameplay/player_movement_config.gd" id="1_config"]
 
 [resource]
 script = ExtResource("1_config")

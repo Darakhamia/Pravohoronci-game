@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://cicctxsi3xle7"]
 
-[ext_resource type="Script" path="res://tests/smoke/smoke_client.gd" id="1_smoke"]
+[ext_resource type="Script" uid="uid://d18qii2vydv6a" path="res://tests/smoke/smoke_client.gd" id="1_smoke"]
 
-[node name="SmokeClient" type="Node"]
+[node name="SmokeClient" type="Node" unique_id=1175190834]
 script = ExtResource("1_smoke")

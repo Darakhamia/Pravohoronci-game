@@ -1,8 +1,8 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://k5rara8m4h5c"]
 
-[ext_resource type="Script" path="res://scripts/ui/hud.gd" id="1_hud"]
+[ext_resource type="Script" uid="uid://dexl5lk87rwcv" path="res://scripts/ui/hud.gd" id="1_hud"]
 
-[node name="Hud" type="Control"]
+[node name="Hud" type="Control" unique_id=2120223240]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -12,7 +12,7 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("1_hud")
 
-[node name="Crosshair" type="CenterContainer" parent="."]
+[node name="Crosshair" type="CenterContainer" parent="." unique_id=1887875056]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -22,13 +22,13 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Dot" type="ColorRect" parent="Crosshair"]
+[node name="Dot" type="ColorRect" parent="Crosshair" unique_id=879305282]
 custom_minimum_size = Vector2(6, 6)
 layout_mode = 2
 mouse_filter = 2
 color = Color(1, 1, 1, 0.9)
 
-[node name="SpectatorBanner" type="MarginContainer" parent="."]
+[node name="SpectatorBanner" type="MarginContainer" parent="." unique_id=381477562]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -39,13 +39,13 @@ grow_vertical = 2
 mouse_filter = 2
 theme_override_constants/margin_top = 96
 
-[node name="Panel" type="PanelContainer" parent="SpectatorBanner"]
+[node name="Panel" type="PanelContainer" parent="SpectatorBanner" unique_id=273301685]
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 0
 mouse_filter = 2
 
-[node name="Margin" type="MarginContainer" parent="SpectatorBanner/Panel"]
+[node name="Margin" type="MarginContainer" parent="SpectatorBanner/Panel" unique_id=855788664]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/margin_left = 32
@@ -53,13 +53,13 @@ theme_override_constants/margin_top = 16
 theme_override_constants/margin_right = 32
 theme_override_constants/margin_bottom = 16
 
-[node name="Label" type="Label" parent="SpectatorBanner/Panel/Margin"]
+[node name="Label" type="Label" parent="SpectatorBanner/Panel/Margin" unique_id=119052086]
 layout_mode = 2
 theme_override_font_sizes/font_size = 30
 text = "Матч уже идёт. Ты войдёшь в следующем раунде."
 horizontal_alignment = 1
 
-[node name="PauseMenu" type="Control" parent="."]
+[node name="PauseMenu" type="Control" parent="." unique_id=1349808236]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -69,7 +69,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Dim" type="ColorRect" parent="PauseMenu"]
+[node name="Dim" type="ColorRect" parent="PauseMenu" unique_id=189215361]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -78,7 +78,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0, 0, 0, 0.55)
 
-[node name="Center" type="CenterContainer" parent="PauseMenu"]
+[node name="Center" type="CenterContainer" parent="PauseMenu" unique_id=498176992]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -86,42 +86,42 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Panel" type="PanelContainer" parent="PauseMenu/Center"]
+[node name="Panel" type="PanelContainer" parent="PauseMenu/Center" unique_id=785188617]
 custom_minimum_size = Vector2(520, 0)
 layout_mode = 2
 
-[node name="Margin" type="MarginContainer" parent="PauseMenu/Center/Panel"]
+[node name="Margin" type="MarginContainer" parent="PauseMenu/Center/Panel" unique_id=637492915]
 layout_mode = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_top = 32
 theme_override_constants/margin_right = 40
 theme_override_constants/margin_bottom = 32
 
-[node name="Buttons" type="VBoxContainer" parent="PauseMenu/Center/Panel/Margin"]
+[node name="Buttons" type="VBoxContainer" parent="PauseMenu/Center/Panel/Margin" unique_id=1483274173]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="Title" type="Label" parent="PauseMenu/Center/Panel/Margin/Buttons"]
+[node name="Title" type="Label" parent="PauseMenu/Center/Panel/Margin/Buttons" unique_id=281741467]
 layout_mode = 2
 theme_override_font_sizes/font_size = 44
 text = "Пауза"
 horizontal_alignment = 1
 
-[node name="ResumeButton" type="Button" parent="PauseMenu/Center/Panel/Margin/Buttons"]
+[node name="ResumeButton" type="Button" parent="PauseMenu/Center/Panel/Margin/Buttons" unique_id=1526040381]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 68)
 layout_mode = 2
 theme_override_font_sizes/font_size = 30
 text = "Продолжить"
 
-[node name="EndMatchButton" type="Button" parent="PauseMenu/Center/Panel/Margin/Buttons"]
+[node name="EndMatchButton" type="Button" parent="PauseMenu/Center/Panel/Margin/Buttons" unique_id=305897815]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 68)
 layout_mode = 2
 theme_override_font_sizes/font_size = 30
 text = "Завершить матч"
 
-[node name="LeaveButton" type="Button" parent="PauseMenu/Center/Panel/Margin/Buttons"]
+[node name="LeaveButton" type="Button" parent="PauseMenu/Center/Panel/Margin/Buttons" unique_id=1874742549]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 68)
 layout_mode = 2

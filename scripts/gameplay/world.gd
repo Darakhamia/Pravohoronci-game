@@ -71,7 +71,8 @@ func _on_map_despawned(node: Node) -> void:
 
 
 func _on_session_ended(_reason: String) -> void:
-	# Реплицированная карта сама не исчезает, когда соединение закрыто.
+	# Движок сам удаляет реплицированную карту при закрытии сессии, но сигнал despawned
+	# не приходит: сбрасываем current_map и сообщаем map_changed(null) сами.
 	_remove_map()
 
 

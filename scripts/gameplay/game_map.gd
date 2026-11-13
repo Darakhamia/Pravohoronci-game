@@ -27,6 +27,9 @@ var _spawn_points_by_peer: Dictionary[int, Marker3D] = {}
 
 func _ready() -> void:
 	_players.child_exiting_tree.connect(_on_player_exiting_tree)
+	# Проверяем до появления аватаров: камера своего игрока не должна скрыть пропажу.
+	if find_children("*", "Camera3D", true, false).is_empty():
+		push_warning("На карте %s нет Camera3D: игрок без аватара увидит пустой экран" % name)
 	if Net.is_server():
 		Net.player_left.connect(_on_net_player_left)
 	else:

@@ -54,7 +54,8 @@ func set_map(map: GameMap) -> void:
 ## Экран поверх матча (голосование, итоги) берёт и отдаёт курсор: пока есть хоть одна
 ## заявка, мышь свободна, а аватар не управляется. who — имя просящего экрана.
 func set_cursor_needed(who: StringName, needed: bool) -> void:
-	if needed:
+	# Пока HUD скрыт, мышь и так свободна: заявка не должна дожить до следующего матча.
+	if needed and is_visible_in_tree():
 		_cursor_requests[who] = true
 	else:
 		_cursor_requests.erase(who)

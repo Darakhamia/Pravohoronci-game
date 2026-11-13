@@ -1,8 +1,8 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://cl3wy6fi0klsq"]
 
-[ext_resource type="Script" path="res://scripts/gameplay/player.gd" id="1_player"]
-[ext_resource type="PackedScene" path="res://scenes/characters/player_visuals.tscn" id="2_visuals"]
-[ext_resource type="Script" path="res://scripts/gameplay/player_input.gd" id="3_input"]
+[ext_resource type="Script" uid="uid://dvunxmqbesf67" path="res://scripts/gameplay/player.gd" id="1_player"]
+[ext_resource type="PackedScene" uid="uid://c13yt3t7n5sow" path="res://scenes/characters/player_visuals.tscn" id="2_visuals"]
+[ext_resource type="Script" uid="uid://1rocpjkpqms" path="res://scripts/gameplay/player_input.gd" id="3_input"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.35
@@ -25,24 +25,24 @@ properties/4/path = NodePath(".:display_name")
 properties/4/spawn = true
 properties/4/replication_mode = 0
 
-[node name="Player" type="CharacterBody3D"]
+[node name="Player" type="CharacterBody3D" unique_id=1081432078]
 collision_layer = 2
 wall_min_slide_angle = 0.0
 script = ExtResource("1_player")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=355232996]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
 shape = SubResource("CapsuleShape3D_body")
 
-[node name="Visuals" parent="." instance=ExtResource("2_visuals")]
+[node name="Visuals" parent="." unique_id=1967722104 instance=ExtResource("2_visuals")]
 
-[node name="Head" type="Node3D" parent="."]
+[node name="Head" type="Node3D" parent="." unique_id=699245526]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
 
-[node name="Camera3D" type="Camera3D" parent="Head"]
+[node name="Camera3D" type="Camera3D" parent="Head" unique_id=2133476442]
 
-[node name="StateSync" type="MultiplayerSynchronizer" parent="."]
+[node name="StateSync" type="MultiplayerSynchronizer" parent="." unique_id=836986728]
 replication_config = SubResource("SceneReplicationConfig_state")
 
-[node name="Input" type="Node" parent="."]
+[node name="Input" type="Node" parent="." unique_id=1073791915]
 script = ExtResource("3_input")

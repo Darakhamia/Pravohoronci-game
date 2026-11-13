@@ -1,7 +1,7 @@
 extends Node
 ## Бот-клиент для дымового теста (его запускает tests/smoke/run_smoke.sh):
 ##   godot --headless res://tests/smoke/smoke_client.tscn -- --port=<порт> --name=<ник> --players=2
-## Проходит путь игрока: лобби -> матч -> движение и прыжок -> конец матча -> выход.
+## Проходит путь игрока: лобби -> матч -> движение и прыжок по очереди -> конец матча -> выход.
 ## Игрой управляет только через публичные API и Input.action_press(), как живой клиент.
 ## Успех: строка "SMOKE OK <ник>" и код выхода 0. Провал: "SMOKE FAIL <ник>: <что>" и код 1.
 
@@ -13,22 +13,25 @@ const DEFAULT_PLAYERS: int = 2
 const MAX_FPS: int = 60
 const MSEC_PER_SEC: float = 1000.0
 
-const HARD_DEADLINE_SEC: float = 40.0
+## Запас сверх очередей ботов на запуск, лобби и выход.
+const HARD_DEADLINE_BASE_SEC: float = 30.0
 const CONNECT_DEADLINE_SEC: float = 10.0
 const LOBBY_DEADLINE_SEC: float = 15.0
 const MATCH_DEADLINE_SEC: float = 10.0
-const SPAWN_DEADLINE_SEC: float = 5.0
-const MOVE_HOLD_SEC: float = 1.5
-## Сколько ещё ждём после своей ходьбы, пока сдвинутся аватары остальных ботов.
-const MOVE_GRACE_SEC: float = 2.0
-const MIN_MOVE_DISTANCE: float = 1.0
-## Пауза перед прыжком: аватар должен остановиться и стоять на полу.
+## MATCH приходит ботам одновременно, дальше все идут по общему расписанию от этого момента.
+## Первая очередь начинается через столько секунд: к этому времени аватары обязаны появиться.
+const FIRST_TURN_AFTER_SEC: float = 2.0
+## Очередь одного бота: идёт вперёд, останавливается, прыгает. Остальные стоят и смотрят.
+const TURN_SEC: float = 3.2
+const MOVE_HOLD_SEC: float = 1.2
+## Пауза после ходьбы: аватар должен остановиться, а его позиция — дойти до всех клиентов.
 const SETTLE_SEC: float = 0.5
-const JUMP_DEADLINE_SEC: float = 1.0
+const JUMP_WATCH_SEC: float = 1.0
+const MIN_MOVE_DISTANCE: float = 1.0
 const MIN_JUMP_HEIGHT: float = 0.3
-## Хост завершает матч через столько секунд после его начала: MATCH приходит ботам
-## одновременно, и этого запаса хватает каждому на шаги 3-5.
-const END_MATCH_AFTER_SEC: float = 5.0
+## Аватар бота, который сейчас не ходит, должен остаться на месте.
+const MAX_IDLE_MOVE_DISTANCE: float = 0.3
+const MAX_IDLE_JUMP_HEIGHT: float = 0.1
 const END_DEADLINE_SEC: float = 12.0
 ## С запасом на случай, когда сервер замечает пропажу соседнего бота только по тайм-ауту ENet.
 const LEAVE_DEADLINE_SEC: float = 10.0
@@ -47,8 +50,9 @@ func _ready() -> void:
 	Engine.max_fps = MAX_FPS
 	_bot_name = CmdArgs.get_value("--name", DEFAULT_NAME)
 	_expected_players = CmdArgs.get_int("--players", DEFAULT_PLAYERS, 1, Net.MAX_PLAYERS)
-	get_tree().create_timer(HARD_DEADLINE_SEC).timeout.connect(
-			_fail.bind("весь прогон не уложился в %d с" % int(HARD_DEADLINE_SEC)))
+	var hard_deadline_sec: float = HARD_DEADLINE_BASE_SEC + _expected_players * TURN_SEC
+	get_tree().create_timer(hard_deadline_sec).timeout.connect(
+			_fail.bind("весь прогон не уложился в %d с" % int(hard_deadline_sec)))
 	Net.connection_failed.connect(_on_session_lost)
 	Net.disconnected.connect(_on_session_lost)
 	# Корень дерева ещё собирает детей: добавить к нему Main можно только отложенно.
@@ -94,7 +98,7 @@ func _run() -> void:
 	var match_started_msec: int = Time.get_ticks_msec()
 
 	_step("3: ждём карту и аватары всех игроков")
-	if not await _wait_until(_are_avatars_spawned, SPAWN_DEADLINE_SEC):
+	if not await _wait_until(_are_avatars_spawned, FIRST_TURN_AFTER_SEC):
 		_fail("на карте нет аватаров всех игроков из лобби")
 		return
 	_avatar_ids.assign(Net.players.keys())
@@ -108,38 +112,20 @@ func _run() -> void:
 			_fail("имя аватара %d \"%s\", а в лобби \"%s\"" % [id, avatar.display_name, Net.get_player_name(id)])
 			return
 
-	# Все боты идут одновременно. Сдвиг своего аватара доказывает путь ввод -> сервер -> клиент,
-	# сдвиг чужих — что сервер рассылает состояние остальных игроков.
-	_step("4: идём вперёд %.1f с" % MOVE_HOLD_SEC)
-	var start_positions: Dictionary[int, Vector3] = {}
-	for id: int in _avatar_ids:
-		start_positions[id] = _get_avatar(id).position
-	Input.action_press(&"move_forward")
-	var held: bool = await _wait_seconds(MOVE_HOLD_SEC)
-	Input.action_release(&"move_forward")
-	if not held:
-		return
-	if not await _wait_until(func() -> bool: return _get_stuck_avatars(start_positions).is_empty(), MOVE_GRACE_SEC):
-		_fail("аватары сдвинулись меньше чем на %.1f м: %s" % [MIN_MOVE_DISTANCE, ", ".join(_get_stuck_avatars(start_positions))])
-		return
-
-	_step("5: прыгаем")
-	if not await _wait_seconds(SETTLE_SEC):
-		return
-	var ground_y: float = _get_avatar(Net.local_id()).position.y
-	Input.action_press(&"jump")
-	var jumped: bool = await _wait_until(
-			func() -> bool: return _get_avatar(Net.local_id()).position.y - ground_y >= MIN_JUMP_HEIGHT,
-			JUMP_DEADLINE_SEC)
-	Input.action_release(&"jump")
-	if not jumped:
-		_fail("аватар не поднялся на %.1f м за %.1f с после прыжка" % [MIN_JUMP_HEIGHT, JUMP_DEADLINE_SEC])
-		return
+	# Боты ходят и прыгают по очереди в порядке входа в лобби. Аватар того, чья очередь,
+	# обязан сдвинуться и подпрыгнуть на каждом клиенте, остальные — остаться на месте:
+	# это проверяет путь ввод -> сервер -> все клиенты и то, что ввод достаётся своему аватару.
+	for turn: int in _avatar_ids.size():
+		var turn_starts_sec: float = FIRST_TURN_AFTER_SEC + turn * TURN_SEC
+		if not await _wait_seconds(turn_starts_sec - _seconds_since(match_started_msec)):
+			return
+		if not await _play_turn(turn, _avatar_ids[turn]):
+			return
 
 	_step("6: ждём конец матча")
 	if Net.is_local_host():
-		var remaining_sec: float = END_MATCH_AFTER_SEC - (Time.get_ticks_msec() - match_started_msec) / MSEC_PER_SEC
-		if not await _wait_seconds(remaining_sec):
+		var match_length_sec: float = FIRST_TURN_AFTER_SEC + _avatar_ids.size() * TURN_SEC
+		if not await _wait_seconds(match_length_sec - _seconds_since(match_started_msec)):
 			return
 		_step("6: мы хост, просим сервер завершить матч")
 		Game.request_end_match()
@@ -160,6 +146,66 @@ func _run() -> void:
 	Net.leave()
 	print("SMOKE OK %s" % _bot_name)
 	get_tree().quit(0)
+
+
+## Одна очередь: бот walker_id идёт вперёд и прыгает, остальные стоят. false — провал.
+func _play_turn(turn: int, walker_id: int) -> bool:
+	var is_my_turn: bool = walker_id == Net.local_id()
+	var walker_name: String = Net.get_player_name(walker_id)
+	_step("4.%d: %s идёт вперёд %.1f с" % [turn + 1, "бот" if is_my_turn else walker_name, MOVE_HOLD_SEC])
+	var start_positions: Dictionary[int, Vector3] = _get_avatar_positions()
+	if is_my_turn:
+		Input.action_press(&"move_forward")
+	var held: bool = await _wait_seconds(MOVE_HOLD_SEC)
+	if is_my_turn:
+		Input.action_release(&"move_forward")
+	if not held or not await _wait_seconds(SETTLE_SEC):
+		return false
+	for id: int in _avatar_ids:
+		var offset: Vector3 = _get_avatar(id).position - start_positions[id]
+		var distance: float = Vector2(offset.x, offset.z).length()
+		if id == walker_id and distance < MIN_MOVE_DISTANCE:
+			_fail("%s шёл вперёд, но его аватар сдвинулся только на %.2f м" % [walker_name, distance])
+			return false
+		if id != walker_id and distance > MAX_IDLE_MOVE_DISTANCE:
+			_fail("шёл %s, а на %.2f м сдвинулся аватар %s" % [walker_name, distance, Net.get_player_name(id)])
+			return false
+
+	_step("5.%d: %s прыгает" % [turn + 1, "бот" if is_my_turn else walker_name])
+	var ground: Dictionary[int, Vector3] = _get_avatar_positions()
+	var rise: Dictionary[int, float] = {}
+	for id: int in _avatar_ids:
+		rise[id] = 0.0
+	if is_my_turn:
+		Input.action_press(&"jump")
+	var watched: bool = await _wait_until(func() -> bool:
+		for id: int in _avatar_ids:
+			rise[id] = maxf(rise[id], _get_avatar(id).position.y - ground[id].y)
+		return false, JUMP_WATCH_SEC)
+	if is_my_turn:
+		Input.action_release(&"jump")
+	# _wait_until вернул false по времени — это норма; провал виден по _finished.
+	if watched or _finished:
+		return false
+	for id: int in _avatar_ids:
+		if id == walker_id and rise[id] < MIN_JUMP_HEIGHT:
+			_fail("%s прыгал, но его аватар поднялся только на %.2f м" % [walker_name, rise[id]])
+			return false
+		if id != walker_id and rise[id] > MAX_IDLE_JUMP_HEIGHT:
+			_fail("прыгал %s, а на %.2f м подпрыгнул аватар %s" % [walker_name, rise[id], Net.get_player_name(id)])
+			return false
+	return true
+
+
+func _get_avatar_positions() -> Dictionary[int, Vector3]:
+	var positions: Dictionary[int, Vector3] = {}
+	for id: int in _avatar_ids:
+		positions[id] = _get_avatar(id).position
+	return positions
+
+
+func _seconds_since(msec: int) -> float:
+	return (Time.get_ticks_msec() - msec) / MSEC_PER_SEC
 
 
 func _step(text: String) -> void:
@@ -237,18 +283,3 @@ func _get_missing_avatars() -> PackedStringArray:
 		if _get_avatar(id) == null:
 			missing.append(Net.get_player_name(id) if Net.players.has(id) else "игрок %d (вышел)" % id)
 	return missing
-
-
-## Аватары, которые на этом клиенте ещё не ушли от начальной точки на MIN_MOVE_DISTANCE.
-func _get_stuck_avatars(start_positions: Dictionary[int, Vector3]) -> PackedStringArray:
-	var stuck: PackedStringArray = []
-	for id: int in start_positions:
-		var avatar: Player = _get_avatar(id)
-		if avatar == null:
-			stuck.append("%s (аватара нет)" % Net.get_player_name(id))
-			continue
-		var offset: Vector3 = avatar.position - start_positions[id]
-		var distance: float = Vector2(offset.x, offset.z).length()
-		if distance < MIN_MOVE_DISTANCE:
-			stuck.append("%s (%.2f м)" % [Net.get_player_name(id), distance])
-	return stuck

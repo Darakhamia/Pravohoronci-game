@@ -7,6 +7,28 @@ const FALLBACK: String = "Игрок"
 
 const FIRST_DUPLICATE_NUMBER: int = 2
 
+## Диапазоны кодов (включительно), которые из имени выбрасываются.
+const REMOVED_RANGES: Array[Vector2i] = [
+	Vector2i(0x0000, 0x001F),  # управляющие C0
+	Vector2i(0x007F, 0x009F),  # DEL и управляющие C1
+	Vector2i(0x00AD, 0x00AD),  # мягкий перенос
+	Vector2i(0x034F, 0x034F),  # combining grapheme joiner
+	Vector2i(0x061C, 0x061C),  # арабская метка направления
+	Vector2i(0x115F, 0x1160),  # пустые символы хангыля
+	Vector2i(0x17B4, 0x17B5),  # невидимые кхмерские гласные
+	Vector2i(0x180B, 0x180F),  # монгольские селекторы и разделитель
+	Vector2i(0x200B, 0x200F),  # нулевая ширина и метки направления
+	Vector2i(0x202A, 0x202E),  # встраивание и разворот текста
+	Vector2i(0x2060, 0x206F),  # word joiner, невидимые операторы, изоляторы
+	Vector2i(0x2800, 0x2800),  # пустой символ Брайля
+	Vector2i(0x3164, 0x3164),  # пустой символ хангыля
+	Vector2i(0xFE00, 0xFE0F),  # селекторы начертания
+	Vector2i(0xFEFF, 0xFEFF),  # BOM
+	Vector2i(0xFFA0, 0xFFA0),  # пустой полуширинный символ хангыля
+	Vector2i(0xFFF9, 0xFFFB),  # межстрочные аннотации
+	Vector2i(0xE0000, 0xE0FFF),  # теги и дополнительные селекторы
+]
+
 ## Отдельные пробельные символы Юникода; диапазоны проверяет _is_whitespace().
 const WHITESPACE_CODES: PackedInt32Array = [0x0020, 0x00A0, 0x1680, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000]
 
@@ -46,16 +68,13 @@ static func make_unique(base_name: String, taken: PackedStringArray) -> String:
 	return candidate
 
 
-## Управляющие символы и невидимые/двунаправленные метки: ими можно подделать чужое имя.
+## Управляющие, невидимые и меняющие направление текста символы: ими можно подделать
+## чужое имя или сделать своё пустым.
 static func _is_removed(code: int) -> bool:
-	return (
-		code < 0x0020
-		or (code >= 0x007F and code <= 0x009F)
-		or (code >= 0x200B and code <= 0x200F)
-		or (code >= 0x202A and code <= 0x202E)
-		or (code >= 0x2060 and code <= 0x2069)
-		or code == 0xFEFF
-	)
+	for code_range: Vector2i in REMOVED_RANGES:
+		if code >= code_range.x and code <= code_range.y:
+			return true
+	return false
 
 
 static func _is_whitespace(code: int) -> bool:

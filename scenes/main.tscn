@@ -1,30 +1,30 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://ds6vv04vbtg4r"]
 
-[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
-[ext_resource type="Script" path="res://scripts/gameplay/world.gd" id="2_world"]
-[ext_resource type="PackedScene" path="res://scenes/ui/main_menu.tscn" id="3_menu"]
-[ext_resource type="PackedScene" path="res://scenes/ui/lobby.tscn" id="4_lobby"]
-[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="5_hud"]
+[ext_resource type="Script" uid="uid://ev30ovf2n1ny" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://ch7bxavb47ijk" path="res://scripts/gameplay/world.gd" id="2_world"]
+[ext_resource type="PackedScene" uid="uid://qr10htpa0y1y" path="res://scenes/ui/main_menu.tscn" id="3_menu"]
+[ext_resource type="PackedScene" uid="uid://rqjmt6i1ftiy" path="res://scenes/ui/lobby.tscn" id="4_lobby"]
+[ext_resource type="PackedScene" uid="uid://k5rara8m4h5c" path="res://scenes/ui/hud.tscn" id="5_hud"]
 
-[node name="Main" type="Node"]
+[node name="Main" type="Node" unique_id=1622707768]
 script = ExtResource("1_main")
 
-[node name="World" type="Node3D" parent="."]
+[node name="World" type="Node3D" parent="." unique_id=428219907]
 script = ExtResource("2_world")
 
-[node name="MapSpawner" type="MultiplayerSpawner" parent="World"]
+[node name="MapSpawner" type="MultiplayerSpawner" parent="World" unique_id=1327815507]
 spawn_path = NodePath("..")
 spawn_limit = 1
 
-[node name="UI" type="CanvasLayer" parent="."]
+[node name="UI" type="CanvasLayer" parent="." unique_id=1702330939]
 
-[node name="MainMenu" parent="UI" instance=ExtResource("3_menu")]
+[node name="MainMenu" parent="UI" unique_id=2048682210 instance=ExtResource("3_menu")]
 unique_name_in_owner = true
 
-[node name="Lobby" parent="UI" instance=ExtResource("4_lobby")]
+[node name="Lobby" parent="UI" unique_id=1798824216 instance=ExtResource("4_lobby")]
 unique_name_in_owner = true
 visible = false
 
-[node name="Hud" parent="UI" instance=ExtResource("5_hud")]
+[node name="Hud" parent="UI" unique_id=299103088 instance=ExtResource("5_hud")]
 unique_name_in_owner = true
 visible = false

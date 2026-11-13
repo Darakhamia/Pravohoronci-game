@@ -4,10 +4,19 @@
 # Останавливается на первом провале. Код выхода 0 — всё прошло, 1 — нет.
 set -u
 
-cd "$(dirname "$0")/.." || exit 1
-
 GODOT="${GODOT:-godot}"
+# Относительный путь к Godot считаем от папки, откуда запустили скрипт, а не от корня проекта.
+case "$GODOT" in
+	*/*)
+		godot_dir="$(cd "$(dirname "$GODOT")" 2>/dev/null && pwd)"
+		if [ -n "$godot_dir" ]; then
+			GODOT="$godot_dir/$(basename "$GODOT")"
+		fi
+		;;
+esac
 export GODOT
+
+cd "$(dirname "$0")/.." || exit 1
 LOG_DIR="tests/.logs"
 IMPORT_LOG="$LOG_DIR/import.log"
 UNIT_LOG="$LOG_DIR/unit.log"
@@ -86,7 +95,13 @@ if [ "$unit_code" -ne 0 ] || grep -q "SCRIPT ERROR" "$UNIT_LOG" || ! grep -q "^U
 fi
 
 echo "TESTS: дымовой тест"
-if ! bash tests/smoke/run_smoke.sh; then
+# В фоне и через wait: так сигнал, присланный только этому скрипту, не ждёт конца теста.
+bash tests/smoke/run_smoke.sh &
+RUN_PID=$!
+wait "$RUN_PID"
+smoke_code=$?
+RUN_PID=""
+if [ "$smoke_code" -ne 0 ]; then
 	failed "дымовой тест"
 fi
 

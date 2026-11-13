@@ -5,9 +5,18 @@
 #   SMOKE_PORT=<порт>      по умолчанию 17777
 set -u
 
-cd "$(dirname "$0")/../.." || exit 1
-
 GODOT="${GODOT:-godot}"
+# Относительный путь к Godot считаем от папки, откуда запустили скрипт, а не от корня проекта.
+case "$GODOT" in
+	*/*)
+		godot_dir="$(cd "$(dirname "$GODOT")" 2>/dev/null && pwd)"
+		if [ -n "$godot_dir" ]; then
+			GODOT="$godot_dir/$(basename "$GODOT")"
+		fi
+		;;
+esac
+
+cd "$(dirname "$0")/../.." || exit 1
 PORT="${SMOKE_PORT:-17777}"
 LOG_DIR="tests/.logs"
 SERVER_LOG="$LOG_DIR/smoke_server.log"
@@ -16,7 +25,7 @@ BOT_B_LOG="$LOG_DIR/smoke_bot_b.log"
 BOT_SCENE="res://tests/smoke/smoke_client.tscn"
 PLAYERS=2
 SERVER_READY_TIMEOUT_SEC=10
-# У бота свой предел 40 с; запас — на запуск движка.
+# У бота свой предел (около 36 с для двух ботов); запас — на запуск движка.
 BOTS_TIMEOUT_SEC=60
 LOG_TAIL_LINES=40
 # Ошибки скриптов и движка в логах Godot.
@@ -95,7 +104,7 @@ SERVER_PID=$!
 waited_sec=0
 until grep -q "\[server\] ready" "$SERVER_LOG" 2>/dev/null; do
 	if ! is_running "$SERVER_PID"; then
-		fail "сервер завершился, не начав слушать порт $PORT"
+		fail "сервер завершился, не начав слушать порт $PORT (порт занят? проверь, не остался ли процесс godot от прошлого запуска)"
 		finish
 	fi
 	if [ "$waited_sec" -ge "$SERVER_READY_TIMEOUT_SEC" ]; then
