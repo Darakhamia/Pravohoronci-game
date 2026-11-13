@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://tests/visual/station_tour.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/maps/station.tscn" id="2_station"]
+
+[node name="StationTour" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="Station" parent="." instance=ExtResource("2_station")]
+
+[node name="Camera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 1.6, 12.4)
+fov = 75.0

@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_gamecfg")
 min_players = 5
-map_scene = "res://scenes/maps/test_map.tscn"
+map_scene = "res://scenes/maps/station.tscn"
 players_for_one_traitor = 3
 players_for_two_traitors = 7
 role_reveal_seconds = 5.0

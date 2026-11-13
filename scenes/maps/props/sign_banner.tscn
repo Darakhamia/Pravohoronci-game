@@ -1,0 +1,66 @@
+[gd_scene format=3]
+
+[ext_resource type="FontFile" path="res://assets/fonts/Unbounded.ttf" id="1_font"]
+
+[sub_resource type="FontVariation" id="FontVariation_sign"]
+base_font = ExtResource("1_font")
+variation_opentype = {
+2003265652: 600
+}
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_plate"]
+albedo_color = Color(0.045, 0.055, 0.13, 1)
+roughness = 0.55
+
+[sub_resource type="BoxMesh" id="BoxMesh_plate"]
+material = SubResource("StandardMaterial3D_plate")
+size = Vector3(3.36, 0.46, 0.06)
+
+[sub_resource type="BoxMesh" id="BoxMesh_rod"]
+material = SubResource("StandardMaterial3D_plate")
+size = Vector3(0.05, 0.2, 0.05)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_1"]
+size = Vector3(3.36, 0.46, 0.06)
+
+[node name="SignBanner" type="Node3D"]
+
+[node name="Plate" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.79, 0)
+mesh = SubResource("BoxMesh_plate")
+
+[node name="RodLeft" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.4, 3.1, 0)
+mesh = SubResource("BoxMesh_rod")
+
+[node name="RodRight" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.4, 3.1, 0)
+mesh = SubResource("BoxMesh_rod")
+
+[node name="Collision" type="StaticBody3D" parent="."]
+
+[node name="Shape1" type="CollisionShape3D" parent="Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.79, 0)
+shape = SubResource("BoxShape3D_1")
+
+[node name="LabelFront" type="Label3D" parent="."]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 2.79, -0.036)
+pixel_size = 0.0028
+double_sided = false
+alpha_cut = 2
+texture_filter = 5
+text = ""
+font = SubResource("FontVariation_sign")
+font_size = 96
+outline_size = 0
+
+[node name="LabelBack" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.79, 0.036)
+pixel_size = 0.0028
+double_sided = false
+alpha_cut = 2
+texture_filter = 5
+text = ""
+font = SubResource("FontVariation_sign")
+font_size = 96
+outline_size = 0
