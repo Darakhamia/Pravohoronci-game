@@ -37,6 +37,13 @@ func _ready() -> void:
 		_player_spawner.spawned.connect(_on_player_spawned)
 
 
+## Сервер: вернуть выпавших с карты.
+func _physics_process(_delta: float) -> void:
+	for player: Player in get_players():
+		if player.position.y < kill_plane_y:
+			player.teleport(_spawn_points_by_peer[player.peer_id].global_position)
+
+
 ## Сервер: расставить аватары всех, кто сейчас в лобби; вошедшие позже ждут следующего матча.
 ## Вызывает World уже после map_changed, чтобы подписчики успели подключиться к player_added.
 func spawn_players() -> void:
@@ -44,13 +51,6 @@ func spawn_players() -> void:
 		return
 	for id: int in Net.players:
 		_spawn_player(id)
-
-
-## Сервер: вернуть выпавших с карты.
-func _physics_process(_delta: float) -> void:
-	for player: Player in get_players():
-		if player.position.y < kill_plane_y:
-			player.teleport(_spawn_points_by_peer[player.peer_id].global_position)
 
 
 func get_player(peer_id: int) -> Player:
