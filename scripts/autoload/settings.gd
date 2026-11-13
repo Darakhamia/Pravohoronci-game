@@ -1,10 +1,13 @@
 extends Node
 ## Локальные настройки игрока в user://settings.cfg.
-## На выделенном сервере файл не читаем и не пишем.
+## Сервер и запуски без окна (боты, тесты) файл не читают и не пишут: им личные настройки
+## не нужны, а тесты не должны зависеть от того, что лежит на машине разработчика.
 
 signal changed(key: StringName)
 
 const FILE_PATH: String = "user://settings.cfg"
+const BROKEN_FILE_PATH: String = "user://settings.cfg.bad"
+const HEADLESS_DISPLAY: String = "headless"
 const SECTION: String = "settings"
 const MASTER_BUS: StringName = &"Master"
 
@@ -12,9 +15,9 @@ const DEFAULT_ADDRESS: String = "127.0.0.1"
 const DEFAULT_MOUSE_SENSITIVITY: float = 0.0025
 const MIN_MOUSE_SENSITIVITY: float = 0.0002
 const MAX_MOUSE_SENSITIVITY: float = 0.02
-const DEFAULT_FOV: float = 90.0
-const MIN_FOV: float = 60.0
-const MAX_FOV: float = 110.0
+const DEFAULT_FOV: float = 70.0
+const MIN_FOV: float = 55.0
+const MAX_FOV: float = 90.0
 const DEFAULT_MASTER_VOLUME: float = 1.0
 
 ## Всегда хранится очищенным через PlayerName.sanitize().
@@ -36,7 +39,7 @@ var mouse_sensitivity: float = DEFAULT_MOUSE_SENSITIVITY:
 		mouse_sensitivity = _sane(value, DEFAULT_MOUSE_SENSITIVITY, MIN_MOUSE_SENSITIVITY, MAX_MOUSE_SENSITIVITY)
 		changed.emit(&"mouse_sensitivity")
 
-## Градусы.
+## Вертикальный угол обзора камеры, градусы. 70° — это около 103° по горизонтали на 16:9.
 var fov: float = DEFAULT_FOV:
 	set(value):
 		fov = _sane(value, DEFAULT_FOV, MIN_FOV, MAX_FOV)
@@ -51,14 +54,14 @@ var master_volume: float = DEFAULT_MASTER_VOLUME:
 
 
 func _ready() -> void:
-	if CmdArgs.is_dedicated_server():
+	if not _uses_file():
 		return
 	_load()
 	_apply_master_volume()
 
 
 func save() -> void:
-	if CmdArgs.is_dedicated_server():
+	if not _uses_file():
 		return
 	var config := ConfigFile.new()
 	config.set_value(SECTION, "player_name", player_name)
@@ -72,15 +75,24 @@ func save() -> void:
 
 
 func _load() -> void:
+	if not FileAccess.file_exists(FILE_PATH):
+		return
 	var config := ConfigFile.new()
-	# Файла нет или он испорчен — остаёмся на значениях по умолчанию.
 	if config.load(FILE_PATH) != OK:
+		# Испорченный файл убираем в сторону, иначе движок ругался бы на него при каждом запуске.
+		DirAccess.remove_absolute(BROKEN_FILE_PATH)
+		DirAccess.rename_absolute(FILE_PATH, BROKEN_FILE_PATH)
+		push_warning("Файл настроек испорчен и переименован в %s, взяты значения по умолчанию" % BROKEN_FILE_PATH)
 		return
 	player_name = _read_string(config, "player_name", player_name)
 	last_address = _read_string(config, "last_address", last_address)
 	mouse_sensitivity = _read_float(config, "mouse_sensitivity", mouse_sensitivity)
 	fov = _read_float(config, "fov", fov)
 	master_volume = _read_float(config, "master_volume", master_volume)
+
+
+static func _uses_file() -> bool:
+	return not CmdArgs.is_dedicated_server() and DisplayServer.get_name() != HEADLESS_DISPLAY
 
 
 func _apply_master_volume() -> void:

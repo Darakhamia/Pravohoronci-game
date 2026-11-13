@@ -40,7 +40,7 @@ text = "Лобби"
 horizontal_alignment = 1
 
 [node name="Panel" type="PanelContainer" parent="Center/Layout"]
-custom_minimum_size = Vector2(760, 0)
+custom_minimum_size = Vector2(840, 0)
 layout_mode = 2
 
 [node name="Margin" type="MarginContainer" parent="Center/Layout/Panel"]

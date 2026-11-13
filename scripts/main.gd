@@ -42,8 +42,13 @@ func _join_from_command_line() -> void:
 	if target.is_empty():
 		return
 	var endpoint: Dictionary = CmdArgs.parse_endpoint(target, Net.DEFAULT_PORT)
+	if not endpoint["port_valid"]:
+		_main_menu.show_status(MainMenu.TEXT_BAD_PORT)
+		return
 	var address: String = endpoint["address"]
 	var port: int = endpoint["port"]
 	var error: Error = Net.join_server(address, port, CmdArgs.get_value("--name", Settings.player_name))
-	if error != OK:
-		_main_menu.show_status("Не удалось начать подключение: %s" % error_string(error))
+	if error == OK:
+		_main_menu.show_connecting()
+	else:
+		_main_menu.show_status(MainMenu.describe_join_error(error))

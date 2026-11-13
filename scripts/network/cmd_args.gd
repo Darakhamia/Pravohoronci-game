@@ -52,8 +52,10 @@ static func is_dedicated_server() -> bool:
 	return has_flag("--server") or OS.has_feature("dedicated_server")
 
 
-## Разбирает "host", "host:port", "[ipv6]:port" и голый ipv6 в {"address": String, "port": int}.
-## Пустой текст -> адрес "". Порт не указан или некорректен -> default_port.
+## Разбирает "host", "host:port", "[ipv6]:port" и голый ipv6 в
+## {"address": String, "port": int, "port_valid": bool}.
+## Пустой текст -> адрес "". Порт не указан -> default_port. Порт указан, но это не число
+## 1..65535 -> тоже default_port, но port_valid == false: меню может сказать об опечатке.
 static func parse_endpoint(text: String, default_port: int) -> Dictionary:
 	var address: String = text.strip_edges()
 	var port_text: String = ""
@@ -69,17 +71,14 @@ static func parse_endpoint(text: String, default_port: int) -> Dictionary:
 		var colon: int = address.find(":")
 		port_text = address.substr(colon + 1)
 		address = address.left(colon)
-	return {"address": address.strip_edges(), "port": _parse_port(port_text, default_port)}
-
-
-static func _parse_port(text: String, default_port: int) -> int:
-	var clean: String = text.strip_edges()
-	if not _is_int_text(clean):
-		return default_port
-	var port: int = clean.to_int()
-	if port < MIN_PORT or port > MAX_PORT:
-		return default_port
-	return port
+	port_text = port_text.strip_edges()
+	var port: int = port_text.to_int() if _is_int_text(port_text) else 0
+	var is_port: bool = port >= MIN_PORT and port <= MAX_PORT
+	return {
+		"address": address.strip_edges(),
+		"port": port if is_port else default_port,
+		"port_valid": is_port or port_text.is_empty(),
+	}
 
 
 static func _is_int_text(text: String) -> bool:

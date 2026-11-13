@@ -10,6 +10,7 @@ const TEST_SCRIPTS: Array[GDScript] = [
 	preload("res://tests/unit/test_cmd_args.gd"),
 	preload("res://tests/unit/test_player_name.gd"),
 	preload("res://tests/unit/test_player_input.gd"),
+	preload("res://tests/unit/test_snapshot_interpolator.gd"),
 ]
 
 

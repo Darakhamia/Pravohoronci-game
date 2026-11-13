@@ -2,12 +2,11 @@ class_name Player
 extends CharacterBody3D
 ## Аватар игрока. Двигает его только сервер; клиенты получают sync_* через StateSync
 ## и плавно показывают. Узел называется по id владельца.
+## Игроки проходят друг сквозь друга: слой players, в маске только world.
 
 const MOVEMENT: PlayerMovementConfig = preload("res://resources/player/player_movement.tres")
-## Клиент: скорость догона серверного состояния, 1/с (больше — резче).
-const SMOOTHING_RATE: float = 20.0
-## Клиент: при большем расхождении (телепорт, респаун) не плывём, а переносим сразу.
-const SNAP_DISTANCE: float = 3.0
+## Клиент: скорость догона серверного поворота чужих игроков, 1/с (больше — резче).
+const TURN_SMOOTHING_RATE: float = 20.0
 
 ## Владелец аватара.
 var peer_id: int = 0
@@ -15,12 +14,18 @@ var peer_id: int = 0
 var sync_position: Vector3 = Vector3.ZERO
 var sync_yaw: float = 0.0
 var sync_pitch: float = 0.0
+## Физический тик сервера, к которому относится состояние.
+var sync_tick: int = 0
 var display_name: String = ""
+
+## Клиент: плавный показ позиции между снимками сервера.
+var _interpolator: SnapshotInterpolator = SnapshotInterpolator.new()
 
 @onready var input: PlayerInput = $Input
 @onready var _head: Node3D = $Head
 @onready var _camera: Camera3D = $Head/Camera3D
 @onready var _visuals: PlayerVisuals = $Visuals
+@onready var _state_sync: MultiplayerSynchronizer = $StateSync
 
 
 func _enter_tree() -> void:
@@ -40,6 +45,8 @@ func _ready() -> void:
 		# Состояние спавна уже применено: встаём сразу на место, без подплывания из нуля.
 		position = sync_position
 		rotation.y = sync_yaw
+		_interpolator.reset(sync_position, sync_tick)
+		_state_sync.synchronized.connect(_on_state_synchronized)
 	_visuals.set_display_name(display_name)
 	if is_local():
 		input.activate_local(sync_yaw)
@@ -51,6 +58,7 @@ func _ready() -> void:
 		# Камера нужна только своему игроку: чужая не должна перехватить вид,
 		# когда текущая исчезнет.
 		_camera.queue_free()
+		_camera = null
 
 
 ## Сервер: один шаг симуляции по последнему принятому вводу.
@@ -63,21 +71,19 @@ func _physics_process(delta: float) -> void:
 	sync_position = position
 	sync_yaw = rotation.y
 	sync_pitch = input.get_pitch()
+	sync_tick = Engine.get_physics_frames()
 
 
 ## Клиент: показать то, что прислал сервер.
 func _process(delta: float) -> void:
-	# Экспоненциальное сглаживание, не зависит от частоты кадров.
-	var weight: float = 1.0 - exp(-SMOOTHING_RATE * delta)
-	if position.distance_to(sync_position) > SNAP_DISTANCE:
-		position = sync_position
-	else:
-		position = position.lerp(sync_position, weight)
+	position = _interpolator.advance(delta, Engine.physics_ticks_per_second)
 	if is_local():
 		# Свой взгляд применяем сразу, не дожидаясь ответа сервера.
 		rotation.y = input.yaw
 		_head.rotation.x = input.pitch
 	else:
+		# Экспоненциальное сглаживание, не зависит от частоты кадров.
+		var weight: float = 1.0 - exp(-TURN_SMOOTHING_RATE * delta)
 		rotation.y = lerp_angle(rotation.y, sync_yaw, weight)
 		_visuals.set_look_pitch(sync_pitch)
 
@@ -99,6 +105,11 @@ func teleport(target_position: Vector3) -> void:
 	position = target_position
 	velocity = Vector3.ZERO
 	sync_position = position
+
+
+## Клиент: пришёл новый снимок состояния.
+func _on_state_synchronized() -> void:
+	_interpolator.push(sync_position, sync_tick)
 
 
 ## Шаг движения. Собран в одной функции, чтобы позже клиент мог повторять его

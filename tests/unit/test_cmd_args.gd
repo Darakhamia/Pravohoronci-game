@@ -80,6 +80,13 @@ func test_parse_endpoint_blank() -> void:
 	_assert_endpoint(":9000", "", 9000)
 
 
+func test_parse_endpoint_reports_mistyped_port() -> void:
+	for text: String in ["example.com", "example.com:", "example.com:9000", "[::1]", "[::1]:9000", "::1", ""]:
+		assert_eq(CmdArgs.parse_endpoint(text, DEFAULT_PORT).get("port_valid"), true, "порт в \"%s\" не ошибка" % text)
+	for text: String in ["example.com:abc", "example.com:0", "example.com:65536", "example.com:77 77", "[::1]:x"]:
+		assert_eq(CmdArgs.parse_endpoint(text, DEFAULT_PORT).get("port_valid"), false, "порт в \"%s\" — опечатка" % text)
+
+
 func _assert_endpoint(text: String, address: String, port: int) -> void:
 	var endpoint: Dictionary = CmdArgs.parse_endpoint(text, DEFAULT_PORT)
 	assert_eq(endpoint.get("address"), address, "адрес из \"%s\"" % text)

@@ -1,8 +1,10 @@
 class_name GameMap
 extends Node3D
 ## Общий скрипт карты. Сервер расставляет аватары по точкам спавна, клиенты получают
-## их через PlayerSpawner. Сцена карты обязана содержать SpawnPoints (Marker3D, -Z смотрит
-## в сторону взгляда), Players и PlayerSpawner; Players стоит в начале координат.
+## их через PlayerSpawner. Сцена карты обязана содержать:
+## - SpawnPoints: хотя бы один Marker3D, -Z смотрит в сторону взгляда игрока;
+## - Players (в начале координат) и PlayerSpawner со сценой игрока в списке;
+## - Camera3D с current = true: вид для тех, у кого нет аватара (опоздавшие, позже призраки).
 
 ## Все пиры: аватар появился и готов.
 signal player_added(player: Player)
@@ -25,12 +27,18 @@ var _spawn_points_by_peer: Dictionary[int, Marker3D] = {}
 
 func _ready() -> void:
 	_players.child_exiting_tree.connect(_on_player_exiting_tree)
-	if not Net.is_server():
+	if Net.is_server():
+		Net.player_left.connect(_on_net_player_left)
+	else:
 		set_physics_process(false)
 		_player_spawner.spawned.connect(_on_player_spawned)
+
+
+## Сервер: расставить аватары всех, кто сейчас в лобби; вошедшие позже ждут следующего матча.
+## Вызывает World уже после map_changed, чтобы подписчики успели подключиться к player_added.
+func spawn_players() -> void:
+	if not Net.is_server():
 		return
-	Net.player_left.connect(_on_net_player_left)
-	# Аватар получают только те, кто был в лобби на старте матча.
 	for id: int in Net.players:
 		_spawn_player(id)
 
@@ -56,13 +64,18 @@ func get_players() -> Array[Player]:
 
 
 func _spawn_player(id: int) -> void:
+	# При повторном спавне игрок возвращается на свою точку.
+	var spawn_point: Marker3D = _spawn_points_by_peer.get(id) as Marker3D
 	# Узел с тем же именем сдвинул бы имя нового (12 -> 13), и аватар достался бы чужому id.
 	var stale: Player = get_player(id)
 	if stale != null:
 		_players.remove_child(stale)
 		stale.queue_free()
-	var index: int = _spawn_points_by_peer.size() % _spawn_points.get_child_count()
-	var spawn_point: Marker3D = _spawn_points.get_child(index) as Marker3D
+	if spawn_point == null:
+		spawn_point = _pick_spawn_point()
+	if spawn_point == null:
+		push_error("На карте %s нет точек спавна: нужен хотя бы один Marker3D в SpawnPoints" % name)
+		return
 	var player: Player = PLAYER_SCENE.instantiate() as Player
 	# По имени узла все пиры узнают владельца аватара.
 	player.name = str(id)
@@ -71,6 +84,22 @@ func _spawn_player(id: int) -> void:
 	_spawn_points_by_peer[id] = spawn_point
 	_players.add_child(player, true)
 	player_added.emit(player)
+
+
+## Первая свободная точка; если заняты все — по кругу.
+func _pick_spawn_point() -> Marker3D:
+	var points: Array[Marker3D] = []
+	for child: Node in _spawn_points.get_children():
+		var point: Marker3D = child as Marker3D
+		if point != null:
+			points.append(point)
+	if points.is_empty():
+		return null
+	var taken: Array = _spawn_points_by_peer.values()
+	for point: Marker3D in points:
+		if not taken.has(point):
+			return point
+	return points[_spawn_points_by_peer.size() % points.size()]
 
 
 func _on_player_spawned(node: Node) -> void:

@@ -52,12 +52,12 @@ func _refresh() -> void:
 	# Сервер всё равно проверит и хоста, и число игроков.
 	_start_button.visible = Net.is_local_host()
 	_start_button.disabled = not can_start
-	if not Net.is_local_host():
-		_hint_label.text = TEXT_WAIT_HOST % Net.get_player_name(Net.host_id)
-	elif can_start:
+	if not can_start:
+		_hint_label.text = TEXT_NEED_PLAYERS % [Game.min_players, _players_word(Game.min_players), count]
+	elif Net.is_local_host():
 		_hint_label.text = TEXT_CAN_START
 	else:
-		_hint_label.text = TEXT_NEED_PLAYERS % [Game.min_players, _players_word(Game.min_players), count]
+		_hint_label.text = TEXT_WAIT_HOST % Net.get_player_name(Net.host_id)
 
 
 ## «минимум 3 игрока», но «минимум 5 игроков». Минимум не больше Net.MAX_PLAYERS,

@@ -5,6 +5,8 @@ extends Control
 
 const TEXT_CONNECTING: String = "Подключение..."
 const TEXT_NO_ADDRESS: String = "Введи адрес сервера"
+const TEXT_BAD_PORT: String = "Неверный порт в адресе сервера"
+const TEXT_BAD_ADDRESS: String = "Не удалось открыть соединение. Проверь адрес сервера"
 const TEXT_JOIN_ERROR: String = "Не удалось начать подключение: %s"
 
 @onready var _name_edit: LineEdit = %NameEdit
@@ -31,16 +33,31 @@ func show_status(text: String) -> void:
 	_set_form_enabled(true)
 
 
+## Подключение началось не из меню (запуск с --join): показываем это и выключаем форму.
+func show_connecting() -> void:
+	_status_label.text = TEXT_CONNECTING
+	_set_form_enabled(false)
+
+
+## Текст для игрока по коду ошибки Net.join_server().
+static func describe_join_error(error: Error) -> String:
+	# ENet так отвечает на адрес, который не удалось разобрать или найти.
+	if error == ERR_CANT_CREATE:
+		return TEXT_BAD_ADDRESS
+	return TEXT_JOIN_ERROR % error_string(error)
+
+
 func _connect_to_server() -> void:
 	if Net.status != Net.Status.OFFLINE:
-		# Подключение уже идёт (например, запущено через --join): просто показываем это.
-		_show_connecting()
 		return
 	var endpoint: Dictionary = CmdArgs.parse_endpoint(_address_edit.text, Net.DEFAULT_PORT)
 	var address: String = endpoint["address"]
 	var port: int = endpoint["port"]
 	if address.is_empty():
 		show_status(TEXT_NO_ADDRESS)
+		return
+	if not endpoint["port_valid"]:
+		show_status(TEXT_BAD_PORT)
 		return
 	Settings.player_name = _name_edit.text
 	Settings.last_address = _address_edit.text
@@ -49,15 +66,10 @@ func _connect_to_server() -> void:
 	_name_edit.text = Settings.player_name
 	var error: Error = Net.join_server(address, port, Settings.player_name)
 	if error != OK:
-		show_status(TEXT_JOIN_ERROR % error_string(error))
+		show_status(describe_join_error(error))
 		return
-	_show_connecting()
-
-
-## Форма выключена до ответа: его передаст Main через show_status() или спрячет меню.
-func _show_connecting() -> void:
-	_status_label.text = TEXT_CONNECTING
-	_set_form_enabled(false)
+	# Форма выключена до ответа: его передаст Main через show_status() или спрячет меню.
+	show_connecting()
 
 
 func _set_form_enabled(enabled: bool) -> void:

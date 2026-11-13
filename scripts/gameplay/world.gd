@@ -45,6 +45,8 @@ func _load_map() -> void:
 		return
 	add_child(map, true)
 	_set_map(map)
+	# После map_changed: подписчики уже слушают player_added.
+	map.spawn_players()
 
 
 func _remove_map() -> void:

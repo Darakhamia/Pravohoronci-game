@@ -27,7 +27,7 @@ var _received_msec: int = 0
 
 func _ready() -> void:
 	set_physics_process(false)
-	set_process_unhandled_input(false)
+	set_process_input(false)
 
 
 func _physics_process(_delta: float) -> void:
@@ -40,7 +40,9 @@ func _physics_process(_delta: float) -> void:
 		jump_pressed.emit()
 
 
-func _unhandled_input(event: InputEvent) -> void:
+## _input, а не _unhandled_input: при захваченной мыши события приходят в центр экрана,
+## и любой элемент HUD с обычным mouse_filter молча съел бы обзор.
+func _input(event: InputEvent) -> void:
 	var motion: InputEventMouseMotion = event as InputEventMouseMotion
 	if motion == null or not enabled or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		return
@@ -54,7 +56,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func activate_local(initial_yaw: float) -> void:
 	yaw = sanitize_yaw(initial_yaw)
 	set_physics_process(true)
-	set_process_unhandled_input(true)
+	set_process_input(true)
 
 
 ## Сервер: принять ввод клиента. Значения чистятся здесь, клиенту не доверяем.

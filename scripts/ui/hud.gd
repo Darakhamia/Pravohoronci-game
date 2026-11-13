@@ -1,12 +1,16 @@
 class_name Hud
 extends Control
 ## Экран матча: прицел, плашка наблюдателя и меню паузы.
-## Единственный хозяин режима мыши: она захвачена, только пока HUD виден,
-## паузы нет и у нас есть свой аватар. То же условие включает управление аватаром.
+## Единственный хозяин режима мыши: она захвачена, только пока HUD виден, паузы нет,
+## у нас есть свой аватар и курсор никому не нужен. То же условие включает управление
+## аватаром. Другие экраны матча Input.mouse_mode сами не трогают, а просят курсор
+## через set_cursor_needed().
 
 var _map: GameMap = null
 var _local_player: Player = null
 var _paused: bool = false
+## Кому из других экранов матча сейчас нужен курсор.
+var _cursor_requests: Dictionary[StringName, bool] = {}
 
 @onready var _crosshair: Control = %Crosshair
 @onready var _spectator_banner: Control = %SpectatorBanner
@@ -47,6 +51,16 @@ func set_map(map: GameMap) -> void:
 	_refresh()
 
 
+## Экран поверх матча (голосование, итоги) берёт и отдаёт курсор: пока есть хоть одна
+## заявка, мышь свободна, а аватар не управляется. who — имя просящего экрана.
+func set_cursor_needed(who: StringName, needed: bool) -> void:
+	if needed:
+		_cursor_requests[who] = true
+	else:
+		_cursor_requests.erase(who)
+	_refresh()
+
+
 func _on_player_added(player: Player) -> void:
 	if player.is_local():
 		_local_player = player
@@ -63,6 +77,7 @@ func _on_player_removed(peer_id: int) -> void:
 func _on_visibility_changed() -> void:
 	if not is_visible_in_tree():
 		_paused = false
+		_cursor_requests.clear()
 	_refresh()
 
 
@@ -73,7 +88,7 @@ func _set_paused(value: bool) -> void:
 
 func _refresh() -> void:
 	var has_player: bool = is_instance_valid(_local_player)
-	var playing: bool = is_visible_in_tree() and has_player and not _paused
+	var playing: bool = is_visible_in_tree() and has_player and not _paused and _cursor_requests.is_empty()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if playing else Input.MOUSE_MODE_VISIBLE
 	if has_player:
 		_local_player.set_input_enabled(playing)
