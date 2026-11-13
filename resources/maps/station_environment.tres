@@ -1,0 +1,115 @@
+[gd_resource type="Environment" format=3]
+
+[sub_resource type="Shader" id="Shader_space"]
+code = "shader_type sky;
+// Космос за окнами станции: туманность, звёзды и мультяшная планета с кольцом.
+// Всё считается в одном проходе без текстур; в проходе кубической карты звёзды пропускаются.
+
+uniform vec3 space_color : source_color = vec3(0.012, 0.014, 0.04);
+uniform vec3 nebula_color_a : source_color = vec3(0.3, 0.12, 0.55);
+uniform vec3 nebula_color_b : source_color = vec3(0.08, 0.42, 0.48);
+uniform float nebula_strength = 0.3;
+uniform float star_scale = 46.0;
+uniform float star_density = 0.1;
+uniform float star_energy = 2.4;
+// Куда смотреть, чтобы увидеть планету (в мировых координатах), и её угловой радиус в радианах.
+uniform vec3 planet_direction = vec3(-0.3, 0.1, -1.0);
+uniform float planet_radius = 0.15;
+uniform float planet_tilt = -0.35;
+uniform vec3 planet_color_a : source_color = vec3(1.0, 0.36, 0.45);
+uniform vec3 planet_color_b : source_color = vec3(1.0, 0.62, 0.11);
+uniform vec3 ring_color : source_color = vec3(1.0, 0.82, 0.25);
+uniform vec3 sun_direction = vec3(0.7, 0.45, 0.35);
+
+float hash13(vec3 p) {
+	p = fract(p * 0.1031);
+	p += dot(p, p.zyx + 31.32);
+	return fract((p.x + p.y) * p.z);
+}
+
+float value_noise(vec3 p) {
+	vec3 i = floor(p);
+	vec3 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	float bottom = mix(mix(hash13(i), hash13(i + vec3(1.0, 0.0, 0.0)), f.x),
+			mix(hash13(i + vec3(0.0, 1.0, 0.0)), hash13(i + vec3(1.0, 1.0, 0.0)), f.x), f.y);
+	float top = mix(mix(hash13(i + vec3(0.0, 0.0, 1.0)), hash13(i + vec3(1.0, 0.0, 1.0)), f.x),
+			mix(hash13(i + vec3(0.0, 1.0, 1.0)), hash13(i + vec3(1.0, 1.0, 1.0)), f.x), f.y);
+	return mix(bottom, top, f.z);
+}
+
+void sky() {
+	vec3 dir = normalize(EYEDIR);
+	float cloud = value_noise(dir * 2.3) * 0.65 + value_noise(dir * 5.1 + 7.0) * 0.35;
+	vec3 nebula = mix(nebula_color_a, nebula_color_b, value_noise(dir * 1.4 + 3.0));
+	vec3 color = space_color + nebula * smoothstep(0.45, 0.9, cloud) * nebula_strength;
+	if (!AT_CUBEMAP_PASS) {
+		vec3 cell_position = dir * star_scale;
+		vec3 cell = floor(cell_position);
+		if (hash13(cell) < star_density) {
+			vec3 offset = vec3(hash13(cell + 11.0), hash13(cell + 23.0), hash13(cell + 37.0)) * 0.5 + 0.25;
+			float size = 0.07 + 0.1 * hash13(cell + 51.0);
+			float star = smoothstep(size, size * 0.3, length(fract(cell_position) - offset));
+			color += vec3(star) * star_energy * (0.35 + 0.65 * hash13(cell + 71.0));
+		}
+	}
+	vec3 planet_dir = normalize(planet_direction);
+	float facing = dot(dir, planet_dir);
+	if (facing > 0.0) {
+		vec3 right = normalize(cross(planet_dir, vec3(0.0, 1.0, 0.0)));
+		vec3 up = cross(right, planet_dir);
+		vec2 uv = vec2(dot(dir, right), dot(dir, up)) / (facing * tan(planet_radius));
+		vec2 tilted = vec2(uv.x * cos(planet_tilt) - uv.y * sin(planet_tilt), uv.x * sin(planet_tilt) + uv.y * cos(planet_tilt));
+		float radius = length(uv);
+		if (radius < 1.0) {
+			vec3 normal = vec3(uv, sqrt(1.0 - radius * radius));
+			vec3 sun = normalize(sun_direction);
+			vec3 sun_local = vec3(dot(sun, right), dot(sun, up), dot(sun, -planet_dir));
+			float light = smoothstep(-0.08, 0.12, dot(normal, sun_local));
+			vec3 base = mix(planet_color_a, planet_color_b, step(0.5, fract(tilted.y * 2.2 + 0.3)));
+			color = base * mix(0.16, 1.0, light);
+		}
+		float ring_radius = length(vec2(tilted.x, tilted.y / 0.26));
+		if (ring_radius > 1.4 && ring_radius < 2.05 && (radius >= 1.0 || tilted.y < 0.0)) {
+			color = ring_color * (ring_radius > 1.62 && ring_radius < 1.7 ? 0.45 : 0.95);
+		}
+	}
+	COLOR = color;
+}
+"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_space"]
+shader = SubResource("Shader_space")
+
+[sub_resource type="Sky" id="Sky_space"]
+sky_material = SubResource("ShaderMaterial_space")
+radiance_size = 1
+
+[resource]
+background_mode = 2
+sky = SubResource("Sky_space")
+ambient_light_source = 2
+ambient_light_color = Color(0.56, 0.6, 0.85, 1)
+ambient_light_energy = 0.65
+tonemap_mode = 2
+tonemap_white = 3.0
+ssao_enabled = true
+ssao_radius = 0.8
+ssao_intensity = 2.2
+glow_enabled = true
+glow_levels/2 = 0.5
+glow_levels/3 = 1.0
+glow_levels/4 = 1.0
+glow_levels/5 = 0.6
+glow_intensity = 0.5
+glow_bloom = 0.0
+glow_blend_mode = 0
+glow_hdr_threshold = 1.0
+glow_hdr_scale = 2.0
+fog_enabled = true
+fog_light_color = Color(0.11, 0.13, 0.26, 1)
+fog_density = 0.012
+fog_sky_affect = 0.0
+adjustment_enabled = true
+adjustment_contrast = 1.03
+adjustment_saturation = 1.08
