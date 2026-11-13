@@ -1579,12 +1579,12 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 32, 0, 19.3)
 
 [node name="TaskFuelDock" parent="Gameplay" instance=ExtResource("37_task_fuel_dock")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 37.47, 0, 12.8)
-title = "Заправить реактор"
+title = "Отнести канистру в реактор"
 location = "Реактор"
 
 [node name="TaskFuelDock2" parent="Gameplay" instance=ExtResource("37_task_fuel_dock")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 37.47, 0, 19.2)
-title = "Заправить реактор"
+title = "Отнести канистру в реактор"
 location = "Реактор"
 
 [node name="TaskCalibrator" parent="Gameplay" instance=ExtResource("38_task_calibrator")]

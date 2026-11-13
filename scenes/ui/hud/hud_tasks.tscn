@@ -47,6 +47,14 @@ theme_type_variation = &"ProgressBarCyan"
 max_value = 1.0
 show_percentage = false
 
+[node name="ListTitle" type="Label" parent="Layout"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"LabelOverlineDanger"
+text = "Задания для прикрытия"
+uppercase = true
+
 [node name="List" type="VBoxContainer" parent="Layout"]
 unique_name_in_owner = true
 visible = false

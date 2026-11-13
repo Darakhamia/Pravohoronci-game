@@ -38,8 +38,6 @@ var _colors: Dictionary[int, int] = {}
 var _meeting_open: bool = false
 ## Собрание уже объявлено закрытым, хотя его стадия ещё не сброшена: заново не открываем.
 var _meeting_dismissed: bool = false
-## За кого мы проголосовали на этом собрании (MeetingScreen.NO_VOTE — ещё нет).
-var _own_vote: int = MeetingScreen.NO_VOTE
 var _results_open: bool = false
 ## Станция, чью кодовую панель мы открыли.
 var _keypad_station: int = NO_STATION
@@ -81,6 +79,7 @@ func _ready() -> void:
 	Game.meeting.started.connect(_on_meeting_started)
 	Game.meeting.stage_changed.connect(_sync_meeting.unbind(1))
 	Game.meeting.vote_cast.connect(_sync_meeting.unbind(1))
+	Game.meeting.attendee_dropped.connect(_sync_meeting.unbind(1))
 	Game.meeting.verdict_ready.connect(_sync_meeting)
 	Game.meeting.closed.connect(_on_meeting_closed)
 	Game.sabotage.started.connect(_sync_sabotage)
@@ -269,6 +268,8 @@ func _on_role_assigned(_role_value: Game.Role) -> void:
 	# Отсчёт идёт и при скрытом HUD: роль могла прийти раньше, чем экран матча.
 	_reveal_hold.start(REVEAL_MIN_SEC)
 	_sync_role()
+	# Список заданий мог прийти раньше роли: предателю его нужно подписать.
+	_sync_tasks()
 	_sync_reveal()
 	_sync_ability()
 	_sync_layers()
@@ -322,16 +323,21 @@ func _sync_tasks() -> void:
 	var titles: PackedStringArray = []
 	var done: Array[bool] = []
 	var seen: Dictionary[int, bool] = {}
+	# У предателя задания фальшивые: и список, и уведомление говорят об этом прямо.
+	var is_cover: bool = Game.local_role == Game.Role.TRAITOR
 	for station_id: int in station_ids:
 		var is_done: bool = Game.tasks.is_local_done(station_id)
 		titles.append(_task_title(station_id))
 		done.append(is_done)
 		# Сообщаем только о том, что стало сделанным на наших глазах.
 		if is_done and _done_seen.has(station_id) and not _done_seen[station_id]:
-			_toasts.show_toast(MatchText.task_done(_station_title(station_id)), HudToast.Kind.SUCCESS)
+			var title: String = _station_title(station_id)
+			_toasts.show_toast(MatchText.cover_task_done(title) if is_cover else MatchText.task_done(title),
+					HudToast.Kind.SUCCESS)
 		seen[station_id] = is_done
 	_done_seen = seen
 	_tasks.set_tasks(titles, done)
+	_tasks.set_cover(is_cover)
 	_tasks.set_progress(Game.tasks.done_count, Game.tasks.total_count)
 	_tasks.visible = not station_ids.is_empty() or Game.tasks.total_count > 0
 
@@ -445,6 +451,8 @@ func _on_limbs_changed(mask: int) -> void:
 
 func _on_held_item_changed(_item_id: int) -> void:
 	_sync_weapon()
+	# Подсказка станции может зависеть от того, что в руках (порт доставки и канистра).
+	_sync_prompt()
 
 
 func _on_focus_changed(_target: Interactable) -> void:
@@ -485,7 +493,8 @@ func _sync_weapon() -> void:
 		_weapon.set_weapon(item.title, _player.weapons.get_ammo(), _player.weapons.can_switch())
 
 
-## Подсказка под прицелом; у калибратора под ней шкала с зелёной зоной.
+## Подсказка под прицелом; у калибратора под ней шкала с зелёной зоной. Если игроку для
+## задания чего-то не хватает, вместо клавиши с действием — объяснение (нажимать нечего).
 func _sync_prompt() -> void:
 	var target: Interactable = null
 	if _in_match() and _is_alive() and Game.is_playing() and not _keypad.is_open():
@@ -493,6 +502,10 @@ func _sync_prompt() -> void:
 	var text: String = target.get_prompt(_player) if is_instance_valid(target) else ""
 	if text.is_empty():
 		_prompt.hide_prompt()
+		_gauge.hide_gauge()
+		return
+	if _is_missing_something(target):
+		_prompt.show_hint(text)
 		_gauge.hide_gauge()
 		return
 	_prompt.show_prompt(MatchText.KEY_INTERACT, text)
@@ -505,7 +518,8 @@ func _sync_prompt() -> void:
 
 ## Удержание E: у калибратора заполняет шкалу, у остальных предметов — рамку вокруг клавиши.
 func _sync_hold() -> void:
-	if not _prompt.visible or not is_instance_valid(_player):
+	# У объяснения без клавиши удерживать нечего.
+	if not _prompt.visible or _prompt.is_hint_shown() or not is_instance_valid(_player):
 		return
 	var fraction: float = _player.interactor.hold_fraction
 	if _gauge.visible:
@@ -513,6 +527,13 @@ func _sync_hold() -> void:
 		_prompt.set_hold_progress(0.0)
 	else:
 		_prompt.set_hold_progress(fraction)
+
+
+## Станция под прицелом ждёт игрока, но выполнить задание ему сейчас нечем (TaskStation
+## .get_missing_hint): её подсказка — объяснение, а не действие.
+func _is_missing_something(target: Interactable) -> bool:
+	var station: TaskStation = target as TaskStation
+	return station != null and not station.get_missing_hint(_player).is_empty()
 
 
 ## Есть ли у предмета зелёная зона (числовые свойства zone_start и zone_end) — так выглядит
@@ -597,20 +618,27 @@ func _sync_meeting() -> void:
 	var entries: Array[MeetingScreen.Entry] = _meeting_entries()
 	if not _meeting_open:
 		_meeting_open = true
-		_own_vote = MeetingScreen.NO_VOTE
 		_close_keypad()
 		_meeting.open(MatchText.meeting_title(module.reason), MatchText.meeting_subtitle(module.reason,
 				_name_of(module.caller_id), _name_of(module.victim_id)), entries)
 		cursor_needed.emit(CURSOR_MEETING, true)
 	else:
 		_meeting.set_entries(entries)
+	# Вердикт берём из полей модуля: Meeting заполняет votes и ejected_id раньше, чем сообщает
+	# о стадии VERDICT любым из двух сигналов (stage_changed и verdict_ready), поэтому их
+	# порядок не важен и «Никого не изгнали» раньше настоящего итога не мелькнёт.
 	if module.stage == Meeting.Stage.VERDICT:
 		var is_ejected: bool = module.ejected_id != MatchRules.SKIP_VOTE
 		_meeting.show_verdict(MatchText.verdict(is_ejected, _name_of(module.ejected_id), module.ejected_role),
 				module.votes, module.ejected_id)
 	_meeting.set_stage(_meeting_stage(), module.stage_seconds_left)
-	_meeting.mark_own_vote(_own_vote)
-	_meeting.set_can_vote(_can_vote())
+	# Свой голос и право голосовать — только то, что подтвердил сервер (module.local_vote,
+	# module.voted): нажатие на карточку само ничего не запоминает. Иначе голос за игрока,
+	# который в этот момент вышел (сервер такой голос не принимает), запер бы нас до вердикта.
+	var is_vote_lost: bool = _is_own_vote_lost()
+	_meeting.mark_own_vote(MeetingScreen.NO_VOTE if is_vote_lost else module.local_vote)
+	_meeting.set_vote_lost(is_vote_lost)
+	_meeting.set_can_vote(module.can_local_vote())
 	_sync_layers()
 
 
@@ -618,7 +646,6 @@ func _close_meeting() -> void:
 	if not _meeting_open:
 		return
 	_meeting_open = false
-	_own_vote = MeetingScreen.NO_VOTE
 	_meeting.close()
 	cursor_needed.emit(CURSOR_MEETING, false)
 	_sync_layers()
@@ -633,7 +660,9 @@ func _meeting_stage() -> MeetingScreen.Stage:
 	return MeetingScreen.Stage.DISCUSSION
 
 
-## Участники матча в порядке лобби; мёртвые — те, кого нет среди пришедших на собрание.
+## Участники матча в порядке лобби. Вне игры — те, кого нет среди пришедших на собрание
+## (погибли раньше), и те, кто вышел из игры уже во время него (module.dropped): за них
+## голосовать нельзя.
 func _meeting_entries() -> Array[MeetingScreen.Entry]:
 	var module: Meeting = Game.meeting
 	var peer_ids: PackedInt32Array = Game.participants.duplicate()
@@ -646,29 +675,31 @@ func _meeting_entries() -> Array[MeetingScreen.Entry]:
 		entry.peer_id = peer_id
 		entry.name = MatchText.player_name(_name_of(peer_id))
 		entry.color = _color_of(peer_id)
-		entry.alive = module.attendees.has(peer_id)
+		entry.alive = module.is_candidate(peer_id)
 		entry.is_self = peer_id == Net.local_id()
 		entry.has_voted = module.voted.has(peer_id) and module.voted[peer_id]
 		entries.append(entry)
 	return entries
 
 
-## Голосует только пришедший на собрание, только на стадии голосования и только один раз.
-func _can_vote() -> bool:
+## Наш голос пропал: сервер его принял, но игрок, за которого он отдан, потом вышел из
+## игры. Второго голоса у нас нет.
+func _is_own_vote_lost() -> bool:
 	var module: Meeting = Game.meeting
-	var local_id: int = Net.local_id()
-	return module.stage == Meeting.Stage.VOTING and module.attendees.has(local_id) \
-			and _own_vote == MeetingScreen.NO_VOTE and not (module.voted.has(local_id) and module.voted[local_id])
+	var target_id: int = module.local_vote
+	if target_id == Meeting.NO_VOTE or target_id == MatchRules.SKIP_VOTE:
+		return false
+	return module.dropped.has(target_id)
 
 
+## Игрок нажал карточку или «Пропустить». Запрос уходит серверу, а экран меняется, только
+## когда сервер подтвердит голос (vote_cast про нас): до тех пор карточки остаются
+## доступными. Повторные запросы сервер отбрасывает сам — засчитывается первый.
 func _on_vote_pressed(target_id: int) -> void:
-	if not _meeting_open or not _can_vote():
+	var module: Meeting = Game.meeting
+	if not _meeting_open or not module.can_local_vote() or not module.is_candidate(target_id):
 		return
-	# Свой выбор помним сами: до вердикта сервер не говорит, кто за кого.
-	_own_vote = target_id
-	_meeting.mark_own_vote(target_id)
-	_meeting.set_can_vote(false)
-	Game.meeting.request_vote(target_id)
+	module.request_vote(target_id)
 
 
 # --- Итоги ---

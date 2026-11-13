@@ -11,9 +11,10 @@ const TEXT_TRAITOR: String = "Предатель"
 const TEXT_LEAD_CREW: String = "Среди вас есть предатель."
 const TEXT_LEAD_TRAITOR: String = "Экипаж не знает, кто ты."
 const TEXT_LEAD_TRAITOR_ALONE: String = "Экипаж не знает, кто ты. Напарников нет."
-## Две строки; перед тире стоит неразрывный пробел, чтобы строка не начиналась с тире.
+## Две строки у экипажа, три у предателя; перед тире стоит неразрывный пробел, чтобы
+## строка не начиналась с тире. Клавиши оружия: 1 — кулаки, 2 — пистолет, 3 — нож.
 const TEXT_HINT_CREW: String = "Выполняй задания и смотри по сторонам.\nТело или подозрение\u00a0— созывай собрание."
-const TEXT_HINT_TRAITOR: String = "Убивай без свидетелей: нож\u00a0— Q. Саботаж реактора\u00a0— F.\nНа собраниях голосуй как все."
+const TEXT_HINT_TRAITOR: String = "Убивай без свидетелей: нож\u00a0— 3. Саботаж реактора\u00a0— F.\nЗадания у тебя для вида\u00a0— в прогресс они не идут.\nНа собраниях голосуй как все."
 const TEXT_PARTNER: String = "Напарник"
 const TEXT_PARTNERS: String = "Напарники"
 const CREW_STYLE: StringName = &"LabelDisplayXLCyan"
@@ -82,6 +83,11 @@ func is_traitor_shown() -> bool:
 
 func get_partner_names() -> PackedStringArray:
 	return _partner_names
+
+
+## Подсказка «что делать» под ролью, как её видит игрок.
+func get_hint() -> String:
+	return _hint.text
 
 
 func _fill_partners(colors: Array[Color]) -> void:

@@ -58,7 +58,9 @@ func _check_roles() -> bool:
 		if peer_id != Net.local_id() and not check(Game.get_role(peer_id) == Game.Role.NONE,
 				"до конца матча известна чужая роль игрока %s" % Net.get_player_name(peer_id)):
 			return false
-	return check(Game.participants.size() == expected_players, "участников %d" % Game.participants.size())
+	# Роль и состав раунда приходят двумя сообщениями: состав может прийти кадром позже.
+	return await expect(func() -> bool: return Game.participants.size() == expected_players,
+			3.0, "участников %d" % Game.participants.size())
 
 
 func _check_frozen_during_reveal() -> bool:
@@ -68,8 +70,10 @@ func _check_frozen_during_reveal() -> bool:
 	await hold(&"move_forward", 0.6)
 	if Game.phase != Game.Phase.ROLE_REVEAL:
 		return check(false, "показ ролей закончился раньше, чем бот отпустил клавишу")
-	return check(me().position.distance_to(start) <= MAX_FROZEN_MOVE,
-			"во время показа ролей аватар сдвинулся на %.2f м" % me().position.distance_to(start))
+	# Только по горизонтали: точка спавна чуть выше пола, и аватар в первые кадры оседает.
+	var offset: Vector3 = me().position - start
+	var moved: float = Vector2(offset.x, offset.z).length()
+	return check(moved <= MAX_FROZEN_MOVE, "во время показа ролей аватар сдвинулся на %.2f м" % moved)
 
 
 ## Bot2: идёт, теряет ногу, идёт снова — уже хромая.

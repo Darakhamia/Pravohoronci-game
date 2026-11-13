@@ -16,6 +16,9 @@ const REPLY_DEADLINE_SEC: float = 5.0
 ## Пауза между выходом и повторным входом: сервер должен успеть заметить выход.
 const REJOIN_PAUSE_SEC: float = 0.5
 
+## Экран матча своего клиента: бот без окна, но HUD у него тот же, что у игрока.
+const HUD_PATH: NodePath = ^"Main/UI/Hud"
+
 ## Бот сам вышел с сервера, чтобы зайти снова: обрыв сессии сейчас не провал.
 var _is_rejoining: bool = false
 
@@ -46,6 +49,11 @@ func expect_no_focus(target: Interactable) -> bool:
 		look_at_point(target.get_focus_position())
 		return false, NOTHING_SEC)
 	return check(me().interactor.focus != target, "%s под прицелом, хотя пользоваться им нельзя" % target.name)
+
+
+## Элемент HUD своего клиента по уникальному имени (^"%Prompt"): что видит игрок.
+func hud_view(path: NodePath) -> Node:
+	return get_tree().root.get_node(HUD_PATH).get_node(path)
 
 
 ## Подойти, навестись и зажать E. Клавишу отпускает вызывающий (release(&"interact")).

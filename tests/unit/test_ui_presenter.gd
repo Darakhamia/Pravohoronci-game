@@ -17,6 +17,7 @@ const MILA: int = 58
 const PEER_IDS: Array[int] = [VANYA, OLYA, LOCAL_ID, MILA]
 const PEER_NAMES: PackedStringArray = ["Ваня", "Оля", "Давид", "Мила"]
 const PISTOL_ITEM: int = 1
+const TITLE_WIRING: String = "Починить проводку — Реактор"
 const CODE: String = "4815"
 ## Клавиши кодовой панели в сетке: цифры 1–9, «стереть», 0, «подтвердить».
 const KEY_CONFIRM: int = 11
@@ -296,14 +297,18 @@ func test_meeting_from_start_to_verdict() -> void:
 	assert_true(skip.visible and not skip.disabled, "можно пропустить")
 	(cards.get_child(1) as Button).pressed.emit()
 	assert_eq(_meeting.requested, [OLYA] as Array[int], "голос ушёл серверу")
+	# Пока сервер не подтвердил голос, экран ничего сам не запоминает.
+	assert_true(not (cards.get_child(0) as Button).disabled, "до ответа сервера экран не заперт")
+	assert_true(not _has_own_vote_tag(cards.get_child(1)), "до ответа сервера выбор не отмечен")
+	_accept_vote(LOCAL_ID, OLYA)
+	assert_true(_has_own_vote_tag(cards.get_child(1)), "подтверждённый голос отмечен на карточке")
+	assert_eq(meeting.get_hint(), MeetingScreen.TEXT_HINT_VOTED, "подсказка: голос принят")
 	assert_true((cards.get_child(0) as Button).disabled, "второй раз голосовать нельзя")
 	(cards.get_child(0) as Button).pressed.emit()
 	skip.pressed.emit()
 	assert_eq(_meeting.requested.size(), 1, "повторные нажатия серверу не уходят")
-	_meeting.voted[LOCAL_ID] = true
-	_meeting.vote_cast.emit(LOCAL_ID)
-	_meeting.voted[VANYA] = true
-	_meeting.vote_cast.emit(VANYA)
+	_accept_vote(VANYA, MILA)
+	assert_true(not _has_own_vote_tag(cards.get_child(3)), "чужой голос на карточках не отмечается")
 	assert_true(meeting.visible, "собрание продолжается")
 	# Вердикт: стадия и итог могут прийти в любом порядке.
 	_meeting.votes = {VANYA: OLYA, LOCAL_ID: OLYA, OLYA: MatchRules.SKIP_VOTE}
@@ -329,18 +334,221 @@ func test_meeting_from_start_to_verdict() -> void:
 	_meeting.victim_id = 0
 	_meeting.voted.clear()
 	_meeting.votes.clear()
+	_meeting.local_vote = Meeting.NO_VOTE
 	_meeting.ejected_id = MatchRules.SKIP_VOTE
 	_meeting.stage = Meeting.Stage.VOTING
 	_set_phase(Game.Phase.MEETING, 0.0)
 	_meeting.started.emit()
 	assert_eq((meeting.get_node(^"%Deck") as Label).text, "Ваня жмёт тревожную кнопку", "повод — кнопка")
 	assert_true(not (cards.get_child(0) as Button).disabled, "на новом собрании снова можно голосовать")
+	assert_true(not _has_own_vote_tag(cards.get_child(1)), "прошлый голос на новом собрании забыт")
 	skip.pressed.emit()
 	assert_eq(_meeting.requested, [OLYA, MatchRules.SKIP_VOTE] as Array[int], "пропуск ушёл серверу")
+	_accept_vote(LOCAL_ID, MatchRules.SKIP_VOTE)
+	assert_true(skip.visible and skip.disabled, "подтверждённый пропуск остаётся на экране как выбор")
 	_meeting.ejected_id = MatchRules.SKIP_VOTE
 	_meeting.stage = Meeting.Stage.VERDICT
 	_meeting.verdict_ready.emit()
 	assert_eq((meeting.get_node(^"%Deck") as Label).text, MatchText.VERDICT_NOBODY, "никого не изгнали")
+	await _close()
+
+
+func test_meeting_player_leaves_during_voting() -> void:
+	await _open(true)
+	var meeting: MeetingScreen = _view(^"%Meeting") as MeetingScreen
+	var cards: Node = meeting.get_node(^"%Cards")
+	var skip: Button = meeting.get_node(^"%SkipButton") as Button
+	_meeting.caller_id = VANYA
+	_meeting.reason = Meeting.Reason.BUTTON
+	_meeting.attendees = PackedInt32Array(PEER_IDS)
+	_meeting.stage = Meeting.Stage.VOTING
+	_meeting.stage_seconds_left = 30.0
+	_set_phase(Game.Phase.MEETING, 0.0)
+	_meeting.started.emit()
+	assert_true(not (cards.get_child(1) as Button).disabled, "за Олю можно голосовать")
+	# Оля вышла из игры посреди голосования.
+	_drop_attendee(OLYA)
+	assert_true((cards.get_child(1) as Button).disabled, "за вышедшего голосовать нельзя")
+	assert_true((cards.get_child(1).get_node(^"%State") as Label).visible, "вышедший показан как «вне игры»")
+	assert_eq((cards.get_child(1).get_node(^"%State") as Label).text, MeetingVoteCard.TEXT_DEAD, "надпись вышедшего")
+	# Нажатие на его карточку (успели до обновления экрана) серверу не уходит и нас не запирает.
+	(cards.get_child(1) as Button).pressed.emit()
+	assert_eq(_meeting.requested, [] as Array[int], "голос за вышедшего серверу не уходит")
+	assert_true(not (cards.get_child(0) as Button).disabled and not skip.disabled, "мы по-прежнему можем голосовать")
+	assert_eq(meeting.get_hint(), MeetingScreen.TEXT_HINT_CAN_VOTE, "подсказка: можно голосовать")
+	# Гонка: наш голос за Ваню ушёл, но Ваня в этот момент вышел — сервер голос не принял.
+	(cards.get_child(0) as Button).pressed.emit()
+	assert_eq(_meeting.requested, [VANYA] as Array[int], "голос за Ваню ушёл серверу")
+	_drop_attendee(VANYA)
+	assert_true((cards.get_child(0) as Button).disabled, "Ваня вне игры")
+	assert_true(not (cards.get_child(3) as Button).disabled and not skip.disabled,
+			"непринятый голос нас не запер: голосовать всё ещё можно")
+	assert_true(not _has_own_vote_tag(cards.get_child(0)), "непринятый голос не отмечен как наш выбор")
+	assert_eq(meeting.get_hint(), MeetingScreen.TEXT_HINT_CAN_VOTE, "подсказка: можно голосовать")
+	# Голос за Милу сервер принял.
+	(cards.get_child(3) as Button).pressed.emit()
+	assert_eq(_meeting.requested, [VANYA, MILA] as Array[int], "второй голос ушёл серверу")
+	_accept_vote(LOCAL_ID, MILA)
+	assert_true(_has_own_vote_tag(cards.get_child(3)), "принятый голос отмечен")
+	assert_true(skip.disabled or not skip.visible, "после принятого голоса голосовать нельзя")
+	# Мила тоже вышла: наш голос пропал, второго сервер не даёт.
+	_drop_attendee(MILA)
+	assert_true(not _has_own_vote_tag(cards.get_child(3)), "пропавший голос больше не отмечен")
+	assert_true((cards.get_child(3) as Button).disabled, "Мила вне игры")
+	assert_eq(meeting.get_hint(), MeetingScreen.TEXT_HINT_VOTE_LOST, "подсказка объясняет, что голос пропал")
+	(cards.get_child(2) as Button).pressed.emit()
+	skip.pressed.emit()
+	assert_eq(_meeting.requested.size(), 2, "второго голоса нет")
+	await _close()
+
+
+func test_traitor_tasks_are_labelled_as_cover() -> void:
+	await _open(true)
+	var tasks: HudTasks = _view(^"%Tasks") as HudTasks
+	var toasts: HudToasts = _view(^"%Toasts") as HudToasts
+	var reveal: RoleReveal = _view(^"%RoleReveal") as RoleReveal
+	# Список пришёл раньше роли.
+	_tasks.ids = PackedInt32Array([_wiring.interact_id, _keypad_station.interact_id])
+	_tasks.total_count = 12
+	_tasks.local_tasks_changed.emit()
+	_tasks.progress_changed.emit()
+	assert_eq(tasks.get_list_title(), "", "пока роль неизвестна, список не подписан")
+	Game._receive_role(Game.Role.TRAITOR, PackedInt32Array())
+	assert_eq(tasks.get_list_title(), "Задания для прикрытия", "список предателя подписан")
+	assert_true(reveal.is_open() and reveal.is_traitor_shown(), "показан предатель")
+	assert_true(reveal.get_hint().contains("Задания у тебя для вида\u00a0— в прогресс они не идут"),
+			"экран роли говорит предателю, что его задания фальшивые")
+	assert_true(reveal.get_hint().contains("нож\u00a0— 3"), "нож у предателя на клавише 3")
+	assert_true(not reveal.get_hint().contains("Q"), "про Q экран роли больше не говорит")
+	# «Выполненное» задание: уведомление не обещает прогресса, полоса экипажа стоит.
+	_tasks.done[_wiring.interact_id] = true
+	_tasks.local_tasks_changed.emit()
+	assert_eq(toasts.get_texts(), PackedStringArray(["Сделано для вида: Починить проводку"]),
+			"уведомление предателю о фальшивом задании")
+	assert_eq((tasks.get_node(^"%ProgressCount") as Label).text, "0/12", "прогресс экипажа не сдвинулся")
+	assert_eq(tasks.get_shown_titles()[1], TITLE_WIRING, "задание отмечено в списке")
+	# Экипажу в следующем матче ничего этого не показывают.
+	Game._receive_role(Game.Role.CREW, PackedInt32Array())
+	assert_eq(tasks.get_list_title(), "", "у экипажа список без подписи")
+	assert_true(not reveal.get_hint().contains("для вида"), "экипажу про задания для вида не говорят")
+	await _close()
+
+
+func test_station_explains_what_is_missing_instead_of_action() -> void:
+	await _open(true)
+	var prompt: HudPrompt = _view(^"%Prompt") as HudPrompt
+	var key: HudKeyCap = prompt.get_node(^"%Key") as HudKeyCap
+	var action: Label = prompt.get_node(^"%Action") as Label
+	var canister_item: int = PlayerWeapons.ITEMS.index_of(TaskFuelDock.CANISTER)
+	var dock: TaskFuelDock = TaskFuelDock.new()
+	dock.title = "Отнести канистру в реактор"
+	dock.prompt = "Залить топливо"
+	_map.add_child(dock)
+	# Без канистры: объяснение вместо действия, клавиши нет, удержание ничего не рисует.
+	_focus(dock)
+	assert_true(prompt.visible and prompt.is_hint_shown(), "у порта без канистры показано объяснение")
+	assert_eq(action.text, "Нужна канистра со склада", "текст объяснения")
+	assert_true(not key.visible, "клавиши у объяснения нет")
+	_hold(0.6)
+	assert_near(key.get_hold(), 0.0, "удержание E у объяснения ничего не рисует")
+	_hold(0.0)
+	# Канистра в руках: обычная подсказка действия.
+	_player.held_item = canister_item
+	assert_true(prompt.visible and not prompt.is_hint_shown(), "с канистрой показано действие")
+	assert_eq(action.text, "Залить топливо", "текст действия")
+	assert_true(key.visible, "клавиша действия показана")
+	_hold(0.5)
+	assert_near(key.get_hold(), 0.5, "удержание рисует рамка клавиши")
+	# Канистру бросили, не отводя прицела.
+	_hold(0.0)
+	_player.held_item = PlayerWeapons.EMPTY_HANDS
+	assert_true(prompt.is_hint_shown(), "без канистры снова объяснение")
+	# Обычная станция после объяснения показывает клавишу.
+	_focus(_wiring)
+	assert_true(key.visible and not prompt.is_hint_shown(), "у обычной станции клавиша на месте")
+	await _close()
+
+
+func test_leaving_the_server_resets_every_overlay() -> void:
+	# Кодовая панель открыта — и сессия оборвалась; потом мы зашли снова зрителем.
+	await _open(true)
+	var keypad: KeypadPanel = _view(^"%Keypad") as KeypadPanel
+	var meeting: MeetingScreen = _view(^"%Meeting") as MeetingScreen
+	var results: ResultsScreen = _view(^"%Results") as ResultsScreen
+	_tasks.task_opened.emit(_keypad_station.interact_id, {"code": CODE})
+	assert_true(keypad.is_open(), "кодовая панель открыта")
+	_leave_server()
+	assert_true(not keypad.is_open(), "выход закрывает кодовую панель")
+	assert_true(_cursor_log.has([MatchPresenter.CURSOR_KEYPAD, false]), "курсор панели отдан")
+	_rejoin_as_spectator(Game.Phase.PLAYING)
+	assert_true(not keypad.is_open() and not meeting.visible and not results.is_open(),
+			"после возвращения поверх матча ничего не висит")
+	assert_eq(keypad.get_entry(), "", "набранный код забыт")
+	# Идёт голосование, мы уже проголосовали — и вышли.
+	_leave_server()
+	_rejoin_as_player()
+	_meeting.caller_id = VANYA
+	_meeting.attendees = PackedInt32Array(PEER_IDS)
+	_meeting.stage = Meeting.Stage.VOTING
+	_meeting.stage_seconds_left = 17.0
+	_set_phase(Game.Phase.MEETING, 0.0)
+	_meeting.started.emit()
+	_accept_vote(LOCAL_ID, OLYA)
+	assert_true(meeting.visible and _has_own_vote_tag(meeting.get_node(^"%Cards").get_child(1)), "мы проголосовали")
+	_cursor_log.clear()
+	_leave_server()
+	assert_true(not meeting.visible, "выход закрывает собрание")
+	assert_true(_cursor_log.has([MatchPresenter.CURSOR_MEETING, false]), "курсор собрания отдан")
+	# Вернулись зрителем в то же собрание: оно показано заново, без нашего прошлого голоса.
+	_rejoin_as_spectator(Game.Phase.MEETING)
+	_meeting.caller_id = VANYA
+	_meeting.attendees = PackedInt32Array([VANYA, OLYA, MILA])
+	_meeting.stage = Meeting.Stage.VOTING
+	_meeting.stage_seconds_left = 9.0
+	_meeting.started.emit()
+	assert_true(meeting.visible, "зритель видит идущее собрание")
+	assert_eq((meeting.get_node(^"%Timer") as Label).text, "0:09", "таймер собрания — с сервера, а не от прошлого раза")
+	assert_true(not _has_own_vote_tag(meeting.get_node(^"%Cards").get_child(1)), "прошлый голос не отмечен")
+	assert_eq(meeting.get_hint(), MeetingScreen.TEXT_HINT_WATCHING, "подсказка зрителю")
+	# Итоги на экране — и мы вышли.
+	_finish_match(Game.Winner.TRAITORS, Game.EndReason.SABOTAGE)
+	assert_true(results.is_open() and not meeting.visible, "итоги открыты")
+	_cursor_log.clear()
+	_leave_server()
+	assert_true(not results.is_open(), "выход закрывает итоги")
+	assert_true(_cursor_log.has([MatchPresenter.CURSOR_RESULTS, false]), "курсор итогов отдан")
+	_rejoin_as_spectator(Game.Phase.PLAYING)
+	assert_true(not results.is_open() and not meeting.visible and not keypad.is_open(),
+			"в новом матче от прошлых экранов ничего не осталось")
+	assert_true(not (_view(^"%RoleReveal") as RoleReveal).is_open(), "экрана роли у зрителя нет")
+	await _close()
+
+
+func test_death_closes_keypad_in_any_order_with_tasks() -> void:
+	await _open(true)
+	var keypad: KeypadPanel = _view(^"%Keypad") as KeypadPanel
+	var prompt: HudPrompt = _view(^"%Prompt") as HudPrompt
+	var station_id: int = _keypad_station.interact_id
+	_tasks.ids = PackedInt32Array([station_id])
+	_tasks.local_tasks_changed.emit()
+	# Сначала сервер сообщил, что наш список больше не в работе, потом пришла смерть аватара.
+	_tasks.task_opened.emit(station_id, {"code": CODE})
+	assert_true(keypad.is_open(), "панель открыта")
+	_tasks.local_tasks_changed.emit()
+	_player.life = Player.Life.CORPSE
+	assert_true(not keypad.is_open(), "смерть закрывает панель")
+	_tasks.task_opened.emit(station_id, {"code": CODE})
+	assert_true(not keypad.is_open(), "мёртвому панель не открывается")
+	# Наоборот: смерть раньше списка.
+	_player.life = Player.Life.ALIVE
+	_tasks.task_opened.emit(station_id, {"code": CODE})
+	assert_true(keypad.is_open(), "панель открыта снова")
+	_focus(_keypad_station)
+	_player.life = Player.Life.CORPSE
+	_tasks.local_tasks_changed.emit()
+	assert_true(not keypad.is_open(), "смерть закрывает панель и до прихода списка")
+	assert_true(not prompt.visible, "мёртвому подсказки под прицелом нет")
+	assert_true((_view(^"%Tasks") as HudTasks).visible, "список заданий мёртвый видит")
 	await _close()
 
 
@@ -584,6 +792,72 @@ func _set_phase(phase: Game.Phase, seconds_left: float) -> void:
 	Game.phase = phase
 	Game.phase_seconds_left = seconds_left
 	Game.phase_changed.emit(phase)
+
+
+## Сервер принял голос: все узнают, кто проголосовал, а за кого — только сам голосовавший.
+func _accept_vote(voter_id: int, target_id: int) -> void:
+	_meeting.voted[voter_id] = true
+	if voter_id == LOCAL_ID:
+		_meeting.local_vote = target_id
+	_meeting.vote_cast.emit(voter_id)
+
+
+## Участник собрания вышел из игры: его голос пропал, голосовать за него нельзя.
+func _drop_attendee(peer_id: int) -> void:
+	_meeting.dropped[peer_id] = true
+	_meeting.voted.erase(peer_id)
+	_meeting.attendee_dropped.emit(peer_id)
+
+
+## Отмечена ли карточка как наш выбор («Твой голос»).
+func _has_own_vote_tag(card: Node) -> bool:
+	var tag: Label = card.get_node(^"%Tag") as Label
+	return tag.visible and tag.text == MeetingVoteCard.TEXT_OWN_VOTE
+
+
+## Сессия оборвалась посреди матча: то же, что делают Net, части матча, Game и Main по
+## сигналу Net.disconnected, в том же порядке.
+func _leave_server() -> void:
+	Net.status = Net.Status.OFFLINE
+	Net.players.clear()
+	Net.player_colors.clear()
+	Net.host_id = 0
+	Net.lobby_changed.emit()
+	_tasks.ids = PackedInt32Array()
+	_tasks.done.clear()
+	_tasks.total_count = 0
+	_tasks.done_count = 0
+	_tasks.local_tasks_changed.emit()
+	_tasks.progress_changed.emit()
+	_meeting._on_session_ended("")
+	Game._on_session_ended("")
+	_hud.visible = false
+	_hud.set_map(null)
+	_player = null
+
+
+## Мы снова на сервере, матч идёт, аватара у нас нет.
+func _rejoin_as_spectator(phase: Game.Phase) -> void:
+	Net.status = Net.Status.JOINED
+	for index: int in PEER_IDS.size():
+		Net.players[PEER_IDS[index]] = PEER_NAMES[index]
+		Net.player_colors[PEER_IDS[index]] = index
+	Net.host_id = VANYA
+	Net.lobby_changed.emit()
+	Game.participants = PackedInt32Array([VANYA, OLYA, MILA])
+	Game.state = Game.State.MATCH
+	Game.state_changed.emit(Game.State.MATCH)
+	_hud.visible = true
+	_hud.set_map(_map)
+	_set_phase(phase, 0.0)
+
+
+## Мы снова на сервере участником нового матча: аватар на карте, фаза PLAYING.
+func _rejoin_as_player() -> void:
+	_rejoin_as_spectator(Game.Phase.PLAYING)
+	Game.participants = PackedInt32Array(PEER_IDS)
+	_player = _map.get_player(LOCAL_ID)
+	_map.player_added.emit(_player)
 
 
 ## Наводит прицел аватара на предмет (null — в пустоту), как это делает PlayerInteractor.

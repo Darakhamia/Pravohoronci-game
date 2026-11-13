@@ -17,6 +17,8 @@ class Entry:
 	var peer_id: int = 0
 	var name: String = ""
 	var color: Color = PlayerPalette.FALLBACK
+	## false — игрок вне игры: погиб до собрания или вышел из игры уже во время него.
+	## Голосовать за такого нельзя.
 	var alive: bool = true
 	var is_self: bool = false
 	var has_voted: bool = false
@@ -42,6 +44,7 @@ const TEXT_TIMER_CAPTION: Dictionary[Stage, String] = {
 const TEXT_HINT_DISCUSSION: String = "Спорьте в Discord. Голосование откроется само."
 const TEXT_HINT_CAN_VOTE: String = "Выбери, кого изгнать, или пропусти."
 const TEXT_HINT_VOTED: String = "Голос принят. Ждём остальных."
+const TEXT_HINT_VOTE_LOST: String = "Игрок вышел из игры\u00a0— твой голос пропал."
 const TEXT_HINT_WATCHING: String = "Ты наблюдаешь: голосуют только живые."
 const TEXT_HINT_VERDICT: String = "Возвращаемся на станцию."
 
@@ -54,6 +57,8 @@ var _stage: Stage = Stage.DISCUSSION
 var _entries: Array[Entry] = []
 var _can_vote: bool = false
 var _own_vote: int = NO_VOTE
+## Мой голос пропал: игрок, за которого он отдан, вышел из игры.
+var _vote_lost: bool = false
 ## Итог: кто за кого голосовал (peer_id -> peer_id цели или SKIP_ID) и кого изгнали.
 var _votes: Dictionary[int, int] = {}
 var _ejected_id: int = SKIP_ID
@@ -92,6 +97,7 @@ func open(title: String, subtitle: String, entries: Array[Entry]) -> void:
 	_stage = Stage.DISCUSSION
 	_can_vote = false
 	_own_vote = NO_VOTE
+	_vote_lost = false
 	_votes = {}
 	_ejected_id = SKIP_ID
 	_verdict = ""
@@ -123,10 +129,22 @@ func set_can_vote(can_vote: bool) -> void:
 	_refresh()
 
 
-## Подсвечивает мой выбор: peer_id игрока или SKIP_ID.
+## Подсвечивает мой выбор: peer_id игрока или SKIP_ID; NO_VOTE — выбора нет.
 func mark_own_vote(target_id: int) -> void:
 	_own_vote = target_id
 	_refresh()
+
+
+## true — мой голос пропал вместе с игроком, за которого был отдан (он вышел из игры):
+## второго голоса нет, подсказка объясняет, что случилось.
+func set_vote_lost(vote_lost: bool) -> void:
+	_vote_lost = vote_lost
+	_refresh()
+
+
+## Подсказка под таймером, как её видит игрок.
+func get_hint() -> String:
+	return _hint.text
 
 
 ## Показывает итог. votes: peer_id голосовавшего -> peer_id цели (SKIP_ID — пропуск),
@@ -183,7 +201,7 @@ func _show_card(card: MeetingVoteCard, entry: Entry, voting_open: bool) -> void:
 	card.set_voters(_voter_colors(entry.peer_id if is_verdict else NO_VOTE))
 	if is_verdict and entry.peer_id == _ejected_id:
 		card.set_mark(MeetingVoteCard.Mark.EJECTED)
-	elif not is_verdict and entry.peer_id == _own_vote:
+	elif not is_verdict and entry.peer_id == _own_vote and entry.alive:
 		card.set_mark(MeetingVoteCard.Mark.OWN_VOTE)
 	else:
 		card.set_mark(MeetingVoteCard.Mark.NONE)
@@ -196,6 +214,8 @@ func _hint_text() -> String:
 		Stage.VOTING:
 			if _can_vote:
 				return TEXT_HINT_CAN_VOTE
+			if _vote_lost:
+				return TEXT_HINT_VOTE_LOST
 			return TEXT_HINT_VOTED if _own_vote != NO_VOTE else TEXT_HINT_WATCHING
 	return TEXT_HINT_VERDICT
 

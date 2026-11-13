@@ -1,13 +1,19 @@
 class_name HudTasks
 extends PanelContainer
 ## Общий прогресс экипажа и задания игрока: невыполненные сверху, выполненные тонут вниз.
-## Панель одна и для экипажа, и для предателя: она показывает то, что ей передали
-## (предателю — задания «для прикрытия»). Скрыта, пока её не включит игра.
+## Панель одна и для экипажа, и для предателя: она показывает то, что ей передали.
+## У предателя над списком стоит заголовок «Задания для прикрытия» (set_cover): его задания
+## фальшивые, и полоса экипажа от них не двигается. Скрыта, пока её не включит игра.
 
 const TEXT_PROGRESS: String = "%d/%d"
+## Заголовок личного списка предателя.
+const TEXT_COVER: String = "Задания для прикрытия"
 
 var _rows: Array[HudTaskRow] = []
+## Список — фальшивые задания предателя.
+var _is_cover: bool = false
 
+@onready var _list_title: Label = %ListTitle
 @onready var _list: VBoxContainer = %List
 @onready var _progress_count: Label = %ProgressCount
 @onready var _progress_bar: ProgressBar = %ProgressBar
@@ -28,6 +34,19 @@ func set_tasks(titles: PackedStringArray, done: Array[bool]) -> void:
 			var index: int = order[slot]
 			row.set_task(titles[index], index < done.size() and done[index])
 	_list.visible = not titles.is_empty()
+	_refresh_list_title()
+
+
+## is_cover — список фальшивый (игрок — предатель): над ним появляется заголовок
+## «Задания для прикрытия». У экипажа заголовка над списком нет.
+func set_cover(is_cover: bool) -> void:
+	_is_cover = is_cover
+	_refresh_list_title()
+
+
+## Заголовок над личным списком, как его видит игрок; пустая строка — заголовка нет.
+func get_list_title() -> String:
+	return _list_title.text if _list_title.visible else ""
 
 
 ## Названия показанных заданий сверху вниз — как их видит игрок.
@@ -57,6 +76,11 @@ static func display_order(count: int, done: Array[bool]) -> PackedInt32Array:
 			if (index < done.size() and done[index]) == wanted:
 				order.append(index)
 	return order
+
+
+func _refresh_list_title() -> void:
+	_list_title.text = TEXT_COVER
+	_list_title.visible = _is_cover and _list.visible
 
 
 ## Сколько заданий выполнил весь экипаж.

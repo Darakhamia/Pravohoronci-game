@@ -24,6 +24,8 @@ const TASK_UNKNOWN: String = "Задание"
 const KEYPAD_TITLE: String = "Ввести код"
 
 const TOAST_TASK_DONE: String = "Готово: %s"
+## То же для предателя: его задания фальшивые и в прогресс экипажа не идут.
+const TOAST_COVER_TASK_DONE: String = "Сделано для вида: %s"
 const TOAST_WRONG_CODE: String = "Неверный код"
 const TOAST_MISSED_ZONE: String = "Мимо зелёной зоны. Попробуй ещё раз."
 const TOAST_TASK_FAILED: String = "Не получилось. Попробуй ещё раз."
@@ -88,6 +90,11 @@ static func task_title(title: String, location: String) -> String:
 
 static func task_done(title: String) -> String:
 	return TOAST_TASK_DONE % (TASK_UNKNOWN if title.is_empty() else title)
+
+
+## Уведомление предателю о «выполненном» фальшивом задании: полоса экипажа не сдвинулась.
+static func cover_task_done(title: String) -> String:
+	return TOAST_COVER_TASK_DONE % (TASK_UNKNOWN if title.is_empty() else title)
 
 
 ## Сообщение о потерянной конечности; для головы и торса — пустая строка.

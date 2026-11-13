@@ -31,6 +31,23 @@ func can_interact(player: Player) -> bool:
 	return Game.tasks.is_pending(player.peer_id, interact_id)
 
 
+## Подсказка под прицелом: действие станции или, если игроку для задания чего-то не
+## хватает, — чего именно.
+func get_prompt(player: Player) -> String:
+	var hint: String = get_missing_hint(player)
+	return prompt if hint.is_empty() else hint
+
+
+## Чего этому игроку не хватает, чтобы выполнить задание прямо сейчас («Нужна канистра со
+## склада»); пустая строка — всего хватает. Пока чего-то не хватает, станция всё равно
+## попадает под прицел, но HUD показывает это объяснение вместо клавиши с действием, а
+## нажатие E ничего не даёт: сервер такую попытку не засчитывает (server_interact
+## наследника). Вызывается на сервере и на клиенте (про своего игрока), поэтому опирается
+## только на то, что известно обоим.
+func get_missing_hint(_player: Player) -> String:
+	return ""
+
+
 ## Клиент: горит ли над станцией метка задания своего игрока.
 func is_marked() -> bool:
 	return _marker != null and _marker.visible
@@ -59,6 +76,12 @@ func _server_is_in_reach(player: Player) -> bool:
 	return distance <= interact_range + PlayerInteractor.RANGE_TOLERANCE
 
 
-## Клиент: метка горит, пока задание ждёт своего игрока.
+## Клиент: показать или спрятать метку. Вызывается при каждом изменении своего списка.
 func _update_marker() -> void:
-	_marker.visible = Game.tasks.is_pending(Net.local_id(), interact_id)
+	_marker.visible = _is_marker_needed()
+
+
+## Клиент: нужна ли сейчас метка над станцией — пока задание ждёт своего игрока.
+## Наследник может сузить условие (порт доставки отмечен, только когда канистра в руках).
+func _is_marker_needed() -> bool:
+	return Game.tasks.is_pending(Net.local_id(), interact_id)

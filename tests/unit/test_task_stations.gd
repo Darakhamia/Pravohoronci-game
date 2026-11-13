@@ -1,11 +1,28 @@
 extends TestCase
-## Чистые правила станций заданий: зелёная зона калибровки и код терминала.
+## Чистые правила станций заданий: зелёная зона калибровки и код терминала. И доставка
+## на клиенте хозяина задания: подсказка порта без канистры и личная метка, которая горит
+## над стеллажом, пока канистры нет, и над портом, когда она в руках.
+
+const MAP_SCENE: PackedScene = preload("res://tests/maps/arena_core.tscn")
+const DOCK_SCENE: PackedScene = preload("res://scenes/items/task_fuel_dock.tscn")
+const RACK_SCENE: PackedScene = preload("res://scenes/items/canister_rack.tscn")
+## Без подключения multiplayer.get_unique_id() равен 1: это и есть наш игрок.
+const LOCAL_ID: int = 1
 
 const FILL_SEC: float = 3.0
 const ZONE_START: float = 0.55
 const ZONE_END: float = 0.8
 const TOLERANCE_SEC: float = 0.1
 const SEED: int = 777
+
+
+## Задания своего игрока: какие станции его ждут, задаёт тест.
+class FakeTasks:
+	extends TaskBoard
+	var pending: PackedInt32Array = []
+
+	func is_pending(peer_id: int, station_id: int) -> bool:
+		return peer_id == LOCAL_ID and pending.has(station_id)
 
 
 func test_release_inside_the_zone_counts() -> void:
@@ -110,6 +127,75 @@ func test_canister_is_a_carried_item_with_a_model() -> void:
 	var canister: ItemConfig = TaskFuelDock.CANISTER
 	assert_true(canister.model != null, "у канистры есть модель")
 	assert_true(PlayerWeapons.ITEMS.index_of(canister) > PlayerWeapons.EMPTY_HANDS, "канистра есть в наборе предметов")
+
+
+func test_delivery_marker_follows_the_canister() -> void:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	# Тесты стартуют из _ready запускающей сцены: корень дерева ещё занят и детей не принимает.
+	await tree.process_frame
+	var real_tasks: TaskBoard = Game.tasks
+	var tasks: FakeTasks = FakeTasks.new()
+	Game.tasks = tasks
+	Net.status = Net.Status.JOINED
+	Net.players[LOCAL_ID] = "Давид"
+	var canister_item: int = PlayerWeapons.ITEMS.index_of(TaskFuelDock.CANISTER)
+	var map: GameMap = MAP_SCENE.instantiate() as GameMap
+	var dock: TaskFuelDock = DOCK_SCENE.instantiate() as TaskFuelDock
+	var other_dock: TaskFuelDock = DOCK_SCENE.instantiate() as TaskFuelDock
+	var rack: CanisterRack = RACK_SCENE.instantiate() as CanisterRack
+	for node: Node in [dock, other_dock, rack]:
+		map.add_child(node)
+	tree.root.add_child(map)
+	await tree.process_frame
+	assert_true(not dock.is_marked() and not rack.is_marked(), "без задания меток нет")
+	# Доставка выдана, аватара ещё нет (он появляется после карты): идти нужно к стеллажу.
+	tasks.pending = PackedInt32Array([dock.interact_id])
+	tasks.local_tasks_changed.emit()
+	assert_true(rack.is_marked(), "без канистры отмечен стеллаж")
+	assert_true(not dock.is_marked(), "без канистры порт не отмечен")
+	var player: Player = GameMap.PLAYER_SCENE.instantiate() as Player
+	player.name = str(LOCAL_ID)
+	player.map = map
+	map.get_node(^"Players").add_child(player)
+	map.player_added.emit(player)
+	assert_true(rack.is_marked() and not dock.is_marked(), "аватар появился с пустыми руками: отмечен стеллаж")
+	# Подсказка порта: без канистры — чего не хватает, пользоваться им при этом «можно»
+	# (он попадает под прицел), с канистрой — действие.
+	assert_true(dock.can_interact(player), "порт попадает под прицел и без канистры")
+	assert_eq(dock.get_missing_hint(player), "Нужна канистра со склада", "порт объясняет, чего не хватает")
+	assert_eq(dock.get_prompt(player), "Нужна канистра со склада", "подсказка порта без канистры")
+	assert_true(not other_dock.can_interact(player), "порт без своего задания под прицел не попадает")
+	# Взял канистру: метка переходит на порт своего задания.
+	player.held_item = canister_item
+	assert_true(dock.is_marked(), "с канистрой отмечен порт")
+	assert_true(not rack.is_marked(), "с канистрой стеллаж не отмечен")
+	assert_true(not other_dock.is_marked(), "порт без своего задания не отмечен")
+	assert_eq(dock.get_missing_hint(player), "", "с канистрой всего хватает")
+	assert_eq(dock.get_prompt(player), dock.prompt, "подсказка порта с канистрой — действие")
+	assert_true(not rack.can_interact(player), "вторую канистру стеллаж не даёт")
+	# Бросил канистру: снова к стеллажу.
+	player.held_item = PlayerWeapons.EMPTY_HANDS
+	assert_true(rack.is_marked() and not dock.is_marked(), "без канистры метка вернулась на стеллаж")
+	# Доставка сделана: меток нет, порт под прицел не попадает.
+	player.held_item = canister_item
+	tasks.pending = PackedInt32Array()
+	tasks.local_tasks_changed.emit()
+	assert_true(not dock.is_marked() and not rack.is_marked(), "после доставки меток нет")
+	assert_true(not dock.can_interact(player), "сделанная доставка под прицел не попадает")
+	map.queue_free()
+	await tree.process_frame
+	Game.tasks = real_tasks
+	tasks.free()
+	Net.status = Net.Status.OFFLINE
+	Net.players.clear()
+
+
+func test_station_without_requirements_shows_its_action() -> void:
+	var station: TaskStation = TaskStation.new()
+	station.prompt = "Починить проводку"
+	assert_eq(station.get_missing_hint(null), "", "обычной станции ничего не нужно")
+	assert_eq(station.get_prompt(null), "Починить проводку", "подсказка обычной станции — действие")
+	station.free()
 
 
 func _in_zone(held_seconds: float) -> bool:

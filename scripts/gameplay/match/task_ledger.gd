@@ -7,6 +7,13 @@ extends RefCounted
 ## У каждого участника свой список станций в порядке выдачи. В общий счёт идут только
 ## задания «считаемых» участников (экипажа): список предателя выглядит так же, но на
 ## прогресс не влияет. Выбывший участник сохраняет список, но выполнять его уже не может.
+##
+## Выбыть можно двумя способами. remove() — о выбывшем знают все (изгнан, вышел из игры):
+## его несделанная работа сразу достаётся живым. retire() — о выбывшем пока никто не знает
+## (убит, тело не найдено): для остальных ничего не меняется, его несделанные задания
+## остаются в общем счёте и числятся за ним, пока hand_over() не объявит обо всех таких
+## разом (TaskBoard вызывает его в начале собрания). Иначе тихое убийство было бы видно
+## всему экипажу по выросшему списку заданий или уменьшившемуся общему счёту.
 
 ## Участники в порядке лобби: по нему решается, кому достанется работа при равенстве.
 var _order: Array[int] = []
@@ -18,6 +25,8 @@ var _done: Dictionary[int, PackedInt32Array] = {}
 var _counted: Dictionary[int, bool] = {}
 ## Кто ещё в игре: только они выполняют задания и получают чужую работу.
 var _active: Dictionary[int, bool] = {}
+## Кто выбыл через retire() и ждёт hand_over(), в порядке выбывания.
+var _awaiting: Array[int] = []
 
 
 ## Забыть всё: матч закончился.
@@ -27,6 +36,7 @@ func clear() -> void:
 	_done.clear()
 	_counted.clear()
 	_active.clear()
+	_awaiting.clear()
 
 
 ## Раздать задания на новый матч. Каждый из peer_ids (порядок лобби) получает per_player
@@ -61,9 +71,19 @@ func is_counted(peer_id: int) -> bool:
 	return _counted.has(peer_id) and _counted[peer_id]
 
 
-## Ещё ли игрок в игре (не выбыл через remove()).
+## Ещё ли игрок в игре (не выбыл через remove() или retire()).
 func is_active(peer_id: int) -> bool:
 	return _active.has(peer_id) and _active[peer_id]
+
+
+## Выбыл ли игрок через retire() и ещё не объявлен: его работа ждёт hand_over().
+func is_awaiting_hand_over(peer_id: int) -> bool:
+	return _awaiting.has(peer_id)
+
+
+## Есть ли выбывшие, о которых ещё не объявлено.
+func has_awaiting_hand_over() -> bool:
+	return not _awaiting.is_empty()
 
 
 ## Список станций игрока в порядке выдачи (копия). У чужого игрока — пустой.
@@ -100,18 +120,74 @@ func complete(peer_id: int, station_id: int) -> bool:
 	return true
 
 
-## Игрок выбыл (убит, изгнан, вышел). Каждое несделанное задание члена экипажа достаётся
-## живому члену экипажа, у которого этой станции нет ни в работе, ни среди сделанных:
-## тому, у кого меньше всего осталось, при равенстве — первому по порядку лобби.
-## Задание, которое взять некому, пропадает из общего счёта. Сделанное остаётся засчитанным.
+## Игрок выбыл, и об этом знают все (изгнан, вышел из игры). Каждое несделанное задание
+## члена экипажа достаётся живому члену экипажа, у которого этой станции нет ни в работе,
+## ни среди сделанных: тому, у кого меньше всего осталось, при равенстве — первому по
+## порядку лобби. Задание, которое взять некому, пропадает из общего счёта. Сделанное
+## остаётся засчитанным. Работа того, кто раньше выбыл через retire(), передаётся так же.
 ## Возвращает тех, чей список вырос (по порядку лобби). Предатель и чужой игрок — пусто.
 func remove(peer_id: int) -> Array[int]:
 	var receivers: Array[int] = []
-	if not is_active(peer_id):
+	if not is_active(peer_id) and not is_awaiting_hand_over(peer_id):
 		return receivers
 	_active[peer_id] = false
+	_awaiting.erase(peer_id)
+	_hand_over_tasks(peer_id, receivers)
+	_sort_by_lobby_order(receivers)
+	return receivers
+
+
+## Игрок выбыл, но остальные об этом ещё не знают (убит, тело не найдено). Выполнять задания
+## он больше не может, а для всех остальных ничего не меняется: его несделанные задания
+## остаются в общем счёте и никому не передаются до hand_over().
+## false — игрок уже выбыл или не участвует (тогда ничего не меняется).
+func retire(peer_id: int) -> bool:
+	if not is_active(peer_id):
+		return false
+	_active[peer_id] = false
+	_awaiting.append(peer_id)
+	return true
+
+
+## О выбывших через retire() стало известно всем: их несделанная работа передаётся живым
+## по правилам remove(), в порядке выбывания. Возвращает тех, чей список вырос (по порядку
+## лобби). Если ждать было некого — пусто.
+func hand_over() -> Array[int]:
+	var receivers: Array[int] = []
+	var announced: Array[int] = _awaiting
+	_awaiting = []
+	for peer_id: int in announced:
+		_hand_over_tasks(peer_id, receivers)
+	_sort_by_lobby_order(receivers)
+	return receivers
+
+
+## Сколько заданий нужно экипажу всего: списки живых и тех, о чьём выбывании ещё не
+## объявлено, плюс сделанное остальными выбывшими.
+func get_total_count() -> int:
+	var total: int = 0
+	for peer_id: int in _order:
+		if not _counted[peer_id]:
+			continue
+		var is_whole_list_counted: bool = _active[peer_id] or _awaiting.has(peer_id)
+		total += _tasks[peer_id].size() if is_whole_list_counted else _done[peer_id].size()
+	return total
+
+
+## Сколько заданий экипаж уже сделал.
+func get_done_count() -> int:
+	var done: int = 0
+	for peer_id: int in _order:
+		if _counted[peer_id]:
+			done += _done[peer_id].size()
+	return done
+
+
+## Раздать живым несделанные задания выбывшего члена экипажа; получателей дописывает
+## в receivers (без повторов). У предателя передавать нечего.
+func _hand_over_tasks(peer_id: int, receivers: Array[int]) -> void:
 	if not is_counted(peer_id):
-		return receivers
+		return
 	for station_id: int in _tasks[peer_id]:
 		if _done[peer_id].has(station_id):
 			continue
@@ -123,27 +199,10 @@ func remove(peer_id: int) -> Array[int]:
 		_tasks[receiver] = tasks
 		if not receivers.has(receiver):
 			receivers.append(receiver)
-	receivers.sort_custom(func(a: int, b: int) -> bool: return _order.find(a) < _order.find(b))
-	return receivers
 
 
-## Сколько заданий нужно экипажу всего: списки живых плюс сделанное выбывшими.
-func get_total_count() -> int:
-	var total: int = 0
-	for peer_id: int in _order:
-		if not _counted[peer_id]:
-			continue
-		total += _tasks[peer_id].size() if _active[peer_id] else _done[peer_id].size()
-	return total
-
-
-## Сколько заданий экипаж уже сделал.
-func get_done_count() -> int:
-	var done: int = 0
-	for peer_id: int in _order:
-		if _counted[peer_id]:
-			done += _done[peer_id].size()
-	return done
+func _sort_by_lobby_order(peer_ids: Array[int]) -> void:
+	peer_ids.sort_custom(func(a: int, b: int) -> bool: return _order.find(a) < _order.find(b))
 
 
 ## Кому отдать станцию выбывшего; 0 — некому.

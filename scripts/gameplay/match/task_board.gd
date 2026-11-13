@@ -5,6 +5,14 @@ extends Node
 ## только хозяину. Задания предателей — фальшивые: выглядят так же, но в прогресс не идут.
 ## Станции карта сообщает сама (server_register_stations), о сценах TaskBoard не знает.
 ## Сам учёт (раздача, выполнение, работа выбывшего) — чистый класс TaskLedger.
+##
+## Работа выбывшего члена экипажа достаётся живым, только когда о нём знают все: изгнанного
+## и вышедшего из игры — сразу, убитого — в начале ближайшего собрания (там же все видят,
+## кого нет за столом). До тех пор ни списки живых, ни общий счёт не меняются: иначе тихое
+## убийство в дальней комнате тут же было бы видно всему экипажу, да ещё и выдавало бы, что
+## убит не предатель. Сам убитый сразу узнаёт, что выполнять свой список больше не может.
+## Если вся оставшаяся работа числится за необъявленными погибшими, экипажу для победы по
+## заданиям придётся созвать собрание.
 
 ## Все пиры: изменился общий прогресс экипажа (done_count, total_count).
 signal progress_changed
@@ -59,6 +67,8 @@ func _ready() -> void:
 	Game.participant_out.connect(_on_participant_out)
 	Game.phase_changed.connect(_on_phase_changed)
 	Net.player_joined.connect(_on_player_joined)
+	# Game создаёт части матча по очереди: в нашем _ready собрания (Game.meeting) ещё нет.
+	_connect_meeting.call_deferred()
 	# Сессия может оборваться раньше, чем клиент узнал о начале матча: тогда Game о конце
 	# матча не сообщает, а список заданий уже мог прийти.
 	Net.disconnected.connect(_reset.unbind(1))
@@ -159,17 +169,49 @@ func _on_round_started() -> void:
 		_send_tasks(peer_id)
 
 
-## Участник выбыл: его несделанные задания достаются живому экипажу («работа коллеги»).
+## Участник выбыл. Если об этом знают все (изгнан, вышел из игры), его несделанные задания
+## сразу достаются живому экипажу («работа коллеги»). Если он убит и тело ещё не найдено,
+## для остальных ничего не меняется до начала собрания (_on_meeting_started).
 ## Победу после этого проверяет сам Game.
 func _on_participant_out(peer_id: int) -> void:
 	if not Net.is_server() or not _ledger.is_active(peer_id):
 		return
-	var receivers: Array[int] = _ledger.remove(peer_id)
+	var receivers: Array[int] = []
+	if _is_exit_public(peer_id):
+		receivers = _ledger.remove(peer_id)
+	else:
+		_ledger.retire(peer_id)
 	# Выбывший видит свой список и дальше, но узнаёт, что выполнять его уже не может.
 	_send_tasks(peer_id)
 	for receiver: int in receivers:
 		_send_tasks(receiver)
 	_server_update_progress()
+
+
+## Началось собрание: все видят, кого нет за столом, — работа погибших с прошлого
+## собрания достаётся живым. Вышедший из игры уже мёртвым ждал этого же момента.
+func _on_meeting_started() -> void:
+	if not Net.is_server() or not _ledger.has_awaiting_hand_over():
+		return
+	for receiver: int in _ledger.hand_over():
+		_send_tasks(receiver)
+	_server_update_progress()
+	# Задание, которое взять некому, пропало из счёта: остальное могло быть уже сделано.
+	Game.server_check_win()
+
+
+## Знают ли все, что этот участник выбыл, в тот момент, когда Game сообщает об этом:
+## он вышел из игры живым (его уже нет в списке лобби) или его только что изгнали.
+## Убитый лежит телом: о нём узнают на собрании.
+func _is_exit_public(peer_id: int) -> bool:
+	if not Net.players.has(peer_id):
+		return true
+	var meeting: Meeting = Game.meeting
+	return meeting.stage == Meeting.Stage.VERDICT and meeting.ejected_id == peer_id
+
+
+func _connect_meeting() -> void:
+	Game.meeting.started.connect(_on_meeting_started)
 
 
 ## Вошедший посреди матча (зритель) узнаёт общий прогресс. Списка у него нет.

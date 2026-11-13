@@ -5,13 +5,21 @@ extends TaskScenarioBot
 ## 1) Предатель пробует чужую станцию (ничего) и «выполняет» своё фальшивое задание:
 ##    у него оно отмечено, общий прогресс у всех — ноль.
 ## 2) Экипаж делает по одному заданию (Bot2 и Bot3 сначала пробуют чужую станцию).
-## 3) Помощник убивает члена экипажа: его несделанное задание появляется в списке
-##    живого коллеги, общее число заданий не меняется; мёртвый список видит, но
-##    выполнять не может.
+## 3) Помощник тихо убивает члена экипажа. Пока о гибели не объявлено, ни у кого из
+##    остальных ничего не меняется: ни список, ни метки, ни общий счёт. Мёртвый свой список
+##    видит, но выполнять не может.
 ## 4) Убитый выходит и заходит снова — уже зрителем: общий прогресс он получает, списка нет.
-## 5) Живой экипаж доделывает всё, включая работу коллеги: победа экипажа по заданиям.
+##    Выход мёртвого игрока для остальных тоже ничего не меняет.
+## 5) Каждый живой бот, убедившись, что у него ничего не изменилось, подаёт знак (взгляд
+##    круто вверх), и помощник созывает собрание от имени живого игрока: только теперь
+##    несделанное задание убитого появляется в списке живого коллеги, общее число заданий
+##    не меняется.
+## 6) После собрания живой экипаж доделывает всё, включая работу коллеги: победа экипажа
+##    по заданиям.
 ## Тот же бот играет сценарий tasks_drop (карта с двумя станциями): там у всех одинаковые
-## списки, работу погибшего взять некому, и она пропадает из общего счёта.
+## списки и работу погибшего взять некому. Живые доделывают своё ещё до знака — победы
+## нет, задание погибшего всё ещё в счёте; на собрании оно пропадает, и экипаж сразу
+## побеждает.
 
 const TRAITOR_NAME: String = "Bot1"
 const TASKS_PER_PLAYER: int = 2
@@ -19,6 +27,13 @@ const CREW_COUNT: int = 3
 const TOTAL_TASKS: int = TASKS_PER_PLAYER * CREW_COUNT
 const STAGE_DEADLINE_SEC: float = 45.0
 const COMPLETE_DEADLINE_SEC: float = 8.0
+## Столько секунд после того, как убитый вернулся зрителем, живой бот ещё наблюдает, что у
+## него ничего не изменилось, и только потом подаёт знак помощнику (собрания без знака не
+## будет). За это же время вернувшийся зритель успевает сверить то, что прислал ему сервер.
+const QUIET_MIN_SEC: float = 2.0
+const MEETING_DEADLINE_SEC: float = 30.0
+## Взгляд круто вверх — знак серверному помощнику: «проверил, можно созывать собрание».
+const SIGNAL_PITCH: float = 1.3
 ## Бот, который на первом этапе ничего не делает и следит за общим прогрессом.
 const IDLE_WATCHER: int = 4
 
@@ -27,6 +42,14 @@ var _stage_switch: Interactable = null
 var _feedback: Array[Array] = []
 ## Наш список на старте.
 var _initial_tasks: PackedInt32Array = []
+## Сколько миллисекунд бот наблюдал тишину после убийства и сколько из них — уже после
+## того, как убитый вышел из игры и вернулся зрителем.
+var _quiet_msec: int = 0
+var _quiet_after_return_msec: int = 0
+## Когда бот увидел, что убитый вернулся зрителем (мс); 0 — ещё не видел.
+var _victim_returned_msec: int = 0
+## Что изменилось до собрания, хотя не должно было (пусто — ничего).
+var _quiet_problem: String = ""
 
 
 func _run() -> void:
@@ -57,30 +80,53 @@ func _run() -> void:
 	if not await expect(func() -> bool: return Game.tasks.done_count >= CREW_COUNT, STAGE_DEADLINE_SEC,
 			"экипаж не сделал по одному заданию: прогресс %d" % Game.tasks.done_count):
 		return
-	if not await _expect_stage(DirectorStages.HANDED):
-		return
-	var stage: int = _stage_switch.state
-	var expected_total: int = TOTAL_TASKS - 1 if stage == DirectorStages.DROPPED else TOTAL_TASKS
-	if not check(Game.tasks.total_count == expected_total and Game.tasks.done_count >= CREW_COUNT,
-			"после гибели коллеги прогресс %d/%d, а всего ждали %d" % [
-			Game.tasks.done_count, Game.tasks.total_count, expected_total]):
+	if not await _expect_stage(DirectorStages.KILLED):
 		return
 	# Смерть приходит репликацией аватара, а этап — отдельным сообщением: порядок не задан.
 	if not await expect(func() -> bool: return not _find_victim_name().is_empty(), REPLY_DEADLINE_SEC,
 			"после убийства все аватары экипажа живы"):
 		return
-	if me().life != Player.Life.ALIVE:
-		if not await _check_dead() or not await _rejoin_as_spectator(expected_total):
-			return
-	elif is_traitor:
-		if not check(Game.tasks.get_local_tasks() == _initial_tasks, "работа экипажа досталась предателю"):
+	var victim_name: String = _find_victim_name()
+	var is_victim: bool = me().life != Player.Life.ALIVE
+	# В tasks_drop живые доделывают свои задания до собрания — каждый в своём темпе.
+	var done_before_meeting: int = TOTAL_TASKS - 1 if _finishes_before_meeting() else CREW_COUNT
+	if is_victim:
+		# Убитый выходит из игры и возвращается зрителем ещё до собрания.
+		if not await _check_dead() or not await _rejoin_as_spectator(TOTAL_TASKS):
 			return
 	else:
-		# Убитый выходит и заходит снова зрителем; доделываем задания, когда он вернулся,
-		# чтобы он точно застал матч.
-		if not await _wait_victim_rejoined():
+		if not await _watch_quiet(victim_name, done_before_meeting):
 			return
-		if not await _finish_crew_tasks(stage == DirectorStages.HANDED + bot_number):
+		if _finishes_before_meeting() and not await _finish_own_work_without_victory(is_traitor):
+			return
+		me().input.pitch = SIGNAL_PITCH
+	if not await _wait_for_meeting(is_victim, done_before_meeting):
+		return
+	if _finishes_before_meeting():
+		# Задание погибшего пропало из счёта, остальное уже сделано: победа в начале собрания.
+		if not await expect_result(Game.Winner.CREW, Game.EndReason.TASKS_DONE, REPLY_DEADLINE_SEC):
+			return
+		if not check(Game.tasks.done_count == TOTAL_TASKS - 1 and Game.tasks.total_count == TOTAL_TASKS - 1,
+				"в конце матча прогресс %d/%d" % [Game.tasks.done_count, Game.tasks.total_count]):
+			return
+		await expect_lobby(10.0)
+		return
+	if not await _expect_stage(DirectorStages.HANDED):
+		return
+	var stage: int = _stage_switch.state
+	var expected_total: int = TOTAL_TASKS - 1 if stage == DirectorStages.DROPPED else TOTAL_TASKS
+	if not await expect(func() -> bool: return Game.tasks.total_count == expected_total, REPLY_DEADLINE_SEC,
+			"после объявления о гибели всего заданий %d, а ждали %d" % [Game.tasks.total_count, expected_total]):
+		return
+	if not check(Game.tasks.done_count == CREW_COUNT, "собрание изменило число сделанных заданий: %d" % Game.tasks.done_count):
+		return
+	var is_receiver: bool = stage == DirectorStages.HANDED + bot_number
+	if not is_victim and not await _check_list_after_meeting(is_traitor, is_receiver):
+		return
+	if not await expect(Game.is_playing, MEETING_DEADLINE_SEC, "после собрания игра не продолжилась"):
+		return
+	if not is_victim and not is_traitor:
+		if not await _finish_crew_tasks():
 			return
 	if not await expect_result(Game.Winner.CREW, Game.EndReason.TASKS_DONE, STAGE_DEADLINE_SEC):
 		return
@@ -218,11 +264,109 @@ func _rejoin_as_spectator(expected_total: int) -> bool:
 	return true
 
 
-## Живой экипаж: ждём, пока убитый коллега вернётся на сервер зрителем (без аватара).
-func _wait_victim_rejoined() -> bool:
-	var victim_name: String = _find_victim_name()
-	return await expect(func() -> bool: return peer_named(victim_name) != 0 and avatar_named(victim_name) == null,
-			STAGE_DEADLINE_SEC, "убитый %s не вернулся на сервер зрителем" % victim_name)
+## В сценарии tasks_drop живой экипаж доделывает свои задания ещё до собрания.
+func _finishes_before_meeting() -> bool:
+	return false
+
+
+## Живой бот после убийства: у него ничего не меняется — общий счёт, свой список, метки
+## над станциями, — пока убитый выходит из игры и возвращается зрителем (список лобби
+## меняется у всех) и ещё QUIET_MIN_SEC после этого. Собрания помощник без нашего знака не
+## созовёт. max_done — сколько заданий экипаж может успеть сделать за это время (в
+## tasks_drop соседний бот мог закончить наблюдение раньше и взяться за своё).
+func _watch_quiet(victim_name: String, max_done: int) -> bool:
+	step("о гибели не объявлено: ничего не должно меняться")
+	# Сравниваем не с тем, что видим сейчас (работа могла перейти уже в момент убийства),
+	# а с тем, что было до него: список со старта и метки над несделанным из него.
+	var marked_before: Dictionary[int, bool] = {}
+	for station_id: int in _stations:
+		marked_before[station_id] = _initial_tasks.has(station_id) and not Game.tasks.is_local_done(station_id)
+	var started_msec: int = Time.get_ticks_msec()
+	# Лямбда получает копии локальных переменных: итог наблюдения копим в полях бота.
+	_quiet_msec = 0
+	_quiet_after_return_msec = 0
+	_victim_returned_msec = 0
+	_quiet_problem = ""
+	await wait_until(func() -> bool:
+		var now_msec: int = Time.get_ticks_msec()
+		_quiet_msec = now_msec - started_msec
+		if _victim_returned_msec == 0 and peer_named(victim_name) != 0 and avatar_named(victim_name) == null:
+			_victim_returned_msec = now_msec
+		if _victim_returned_msec != 0:
+			_quiet_after_return_msec = now_msec - _victim_returned_msec
+		if Game.meeting.is_active() or not Game.is_playing():
+			_quiet_problem = "началось собрание или игра прервалась, хотя знака мы не подавали"
+		elif Game.tasks.total_count != TOTAL_TASKS or Game.tasks.done_count < CREW_COUNT or Game.tasks.done_count > max_done:
+			_quiet_problem = "общий прогресс стал %d/%d" % [Game.tasks.done_count, Game.tasks.total_count]
+		elif Game.tasks.get_local_tasks() != _initial_tasks:
+			_quiet_problem = "список заданий стал %s (был %s)" % [Game.tasks.get_local_tasks(), _initial_tasks]
+		else:
+			for station_id: int in _stations:
+				if _stations[station_id].is_marked() != marked_before[station_id]:
+					_quiet_problem = "изменилась метка над станцией %s" % _stations[station_id].name
+					break
+		return not _quiet_problem.is_empty() or _quiet_after_return_msec >= QUIET_MIN_SEC * MSEC_PER_SEC,
+		MEETING_DEADLINE_SEC)
+	if not check(_quiet_problem.is_empty(), "через %.1f с после убийства: %s" % [_quiet_msec / MSEC_PER_SEC, _quiet_problem]):
+		return false
+	return check(_quiet_after_return_msec >= QUIET_MIN_SEC * MSEC_PER_SEC,
+			"убитый не вышел и не вернулся зрителем за %.1f с" % (_quiet_msec / MSEC_PER_SEC))
+
+
+## Сценарий tasks_drop: живой экипаж доделывает свои задания. Всё, кроме задания погибшего,
+## сделано — но о гибели не объявлено, его задание в счёте, и победы по заданиям нет.
+func _finish_own_work_without_victory(is_traitor: bool) -> bool:
+	if not is_traitor:
+		step("доделываем свои задания до собрания")
+		if not await _finish_crew_tasks():
+			return false
+	if not await expect(func() -> bool: return Game.tasks.done_count == TOTAL_TASKS - 1, STAGE_DEADLINE_SEC,
+			"живой экипаж не доделал свои задания: прогресс %d" % Game.tasks.done_count):
+		return false
+	if not await wait_seconds(NOTHING_SEC):
+		return false
+	return check(Game.tasks.total_count == TOTAL_TASKS and Game.is_playing() and Game.last_result == null,
+			"без собрания: всего заданий %d, фаза %s — задание необъявленного погибшего должно оставаться в счёте" % [
+			Game.tasks.total_count, Game.Phase.find_key(Game.phase)])
+
+
+## До самого собрания общий счёт заданий и свой список прежние. Проверяем каждый кадр, пока
+## не началось собрание (сервер сначала сообщает о собрании и только потом — о переданной
+## работе) или матч не закончился (в tasks_drop собрание сразу приносит победу).
+func _wait_for_meeting(is_victim: bool, max_done: int) -> bool:
+	var tasks_before: PackedInt32Array = PackedInt32Array() if is_victim else _initial_tasks
+	_quiet_problem = ""
+	var is_started: bool = await wait_until(func() -> bool:
+		if Game.meeting.is_active() or not Game.is_playing():
+			return true
+		if Game.tasks.total_count != TOTAL_TASKS or Game.tasks.done_count < CREW_COUNT or Game.tasks.done_count > max_done:
+			_quiet_problem = "общий прогресс стал %d/%d" % [Game.tasks.done_count, Game.tasks.total_count]
+		elif Game.tasks.get_local_tasks() != tasks_before:
+			_quiet_problem = "список заданий стал %s (был %s)" % [Game.tasks.get_local_tasks(), tasks_before]
+		return not _quiet_problem.is_empty(), MEETING_DEADLINE_SEC)
+	if not check(_quiet_problem.is_empty(), "до собрания: %s" % _quiet_problem):
+		return false
+	return check(is_started, "помощник не созвал собрание")
+
+
+## После объявления о гибели: получатель видит работу коллеги в конце списка, у остальных
+## (в том числе у предателя) список прежний.
+func _check_list_after_meeting(is_traitor: bool, is_receiver: bool) -> bool:
+	if is_traitor:
+		return check(Game.tasks.get_local_tasks() == _initial_tasks, "работа экипажа досталась предателю")
+	if not is_receiver:
+		return check(Game.tasks.get_local_tasks() == _initial_tasks,
+				"список изменился, хотя работу коллеги получил не этот бот: %s" % Game.tasks.get_local_tasks())
+	step("получил работу погибшего коллеги")
+	if not await expect(func() -> bool: return Game.tasks.get_local_tasks().size() == TASKS_PER_PLAYER + 1,
+			REPLY_DEADLINE_SEC, "работа коллеги не пришла получателю: %s" % Game.tasks.get_local_tasks()):
+		return false
+	var tasks: PackedInt32Array = Game.tasks.get_local_tasks()
+	if not check(tasks.slice(0, TASKS_PER_PLAYER) == _initial_tasks, "список получателя: %s (был %s)" % [tasks, _initial_tasks]):
+		return false
+	var handed: int = tasks[TASKS_PER_PLAYER]
+	return check(not _initial_tasks.has(handed) and Game.tasks.is_pending(Net.local_id(), handed)
+			and _stations[handed].is_marked(), "работа коллеги не ждёт получателя или не отмечена меткой")
 
 
 ## Имя члена экипажа, чей аватар мёртв или уже исчез (убитый перезашёл); пусто — все живы.
@@ -235,22 +379,9 @@ func _find_victim_name() -> String:
 	return ""
 
 
-## Живой экипаж: тот, кому помощник назначил работу коллеги, видит её в списке; все
-## доделывают всё, что у них осталось.
-func _finish_crew_tasks(is_receiver: bool) -> bool:
-	var tasks: PackedInt32Array = Game.tasks.get_local_tasks()
-	if is_receiver:
-		step("получил работу погибшего коллеги")
-		if not check(tasks.size() == TASKS_PER_PLAYER + 1 and tasks.slice(0, TASKS_PER_PLAYER) == _initial_tasks,
-				"список получателя: %s (был %s)" % [tasks, _initial_tasks]):
-			return false
-		var handed: int = tasks[TASKS_PER_PLAYER]
-		if not check(not _initial_tasks.has(handed) and Game.tasks.is_pending(Net.local_id(), handed)
-				and _stations[handed].is_marked(), "работа коллеги не ждёт получателя или не отмечена меткой"):
-			return false
-	elif not check(tasks == _initial_tasks, "список изменился, хотя работу коллеги получил не этот бот: %s" % tasks):
-		return false
-	for station_id: int in tasks:
+## Живой экипаж доделывает всё, что у него осталось, включая работу коллеги.
+func _finish_crew_tasks() -> bool:
+	for station_id: int in Game.tasks.get_local_tasks():
 		if Game.tasks.is_pending(Net.local_id(), station_id) and not await _complete(station_id):
 			return false
 	return true
@@ -259,5 +390,6 @@ func _finish_crew_tasks(is_receiver: bool) -> bool:
 ## Этапы серверного помощника (см. tasks_roles_director.gd).
 class DirectorStages:
 	const FAKE_DONE: int = 1
+	const KILLED: int = 10
 	const HANDED: int = 20
 	const DROPPED: int = 30

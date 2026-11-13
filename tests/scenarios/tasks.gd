@@ -7,6 +7,9 @@ extends TaskScenarioBot
 ## Заодно — отказы сервера: неверный код, код издалека и без открытия, поток ответов,
 ## калибровка мимо зоны и с переливом, порт без канистры, вторая канистра, повтор
 ## сделанного задания.
+## Доставка: без канистры порт попадает под прицел, но HUD вместо действия объясняет, что
+## нужна канистра со склада, а E ничего не даёт; личная метка горит над стеллажом, пока
+## канистры нет, и над портом, когда она в руках.
 
 const TASKS_PER_PLAYER: int = 4
 const PLAYERS: int = 2
@@ -103,12 +106,14 @@ func _check_start() -> bool:
 		if not check(Game.tasks.is_pending(Net.local_id(), station.interact_id)
 				and not Game.tasks.is_local_done(station.interact_id), "задание %s не ждёт игрока" % station.name):
 			return false
-		if not check(station.is_marked(), "над своей станцией %s не горит метка" % station.name):
+		# Порт доставки отмечен, только когда канистра уже в руках: до этого — стеллаж.
+		if not check(station.is_marked() == (station != _dock), "метка над станцией %s: %s" % [
+				station.name, station.is_marked()]):
 			return false
 		if not check(not station.title.is_empty() and not station.location.is_empty(),
 				"у станции %s нет названия или места" % station.name):
 			return false
-	if not check(_rack.is_marked(), "над стеллажом не горит метка, хотя нужна доставка"):
+	if not check(_rack.is_marked(), "над стеллажом не горит метка, хотя нужна доставка и канистры нет"):
 		return false
 	# Клиент знает задания только про себя.
 	var other_id: int = peer_named("Bot2" if bot_number == 1 else "Bot1")
@@ -366,16 +371,40 @@ func _hold_until_fraction(fraction: float) -> bool:
 func _do_fuel(expected_done: int) -> bool:
 	step("доставка")
 	var done_before: int = expected_done - 1
-	# Без канистры порт не работает — ни у клиента, ни на сервере.
-	if not await approach(_dock) or not await expect_no_focus(_dock):
+	# Без канистры порт под прицел попадает, но вместо действия объясняет, чего не хватает,
+	# а удержание E ничего не даёт — ни на экране, ни на сервере.
+	var prompt: HudPrompt = hud_view(^"%Prompt") as HudPrompt
+	var prompt_text: Label = prompt.get_node(^"%Action") as Label
+	var prompt_key: HudKeyCap = prompt.get_node(^"%Key") as HudKeyCap
+	if not await approach(_dock) or not await aim(_dock):
+		return false
+	if not await expect(func() -> bool: return prompt.is_hint_shown(), REPLY_DEADLINE_SEC,
+			"у порта без канистры HUD не показал объяснение"):
+		return false
+	if not check(prompt_text.text == "Нужна канистра со склада" and not prompt_key.visible,
+			"подсказка у порта без канистры: «%s», клавиша показана: %s" % [prompt_text.text, prompt_key.visible]):
+		return false
+	if not check(not _dock.is_marked() and _rack.is_marked(), "без канистры метка должна гореть над стеллажом, а не над портом"):
 		return false
 	var feedback_count: int = _feedback.size()
+	press(&"interact")
+	if not await wait_seconds(_dock.hold_seconds + NOTHING_SEC):
+		return false
+	var is_hold_drawn: bool = prompt_key.get_hold() > 0.0
+	release(&"interact")
+	if not check(prompt.is_hint_shown() and not is_hold_drawn, "удержание E у порта без канистры что-то показало на экране"):
+		return false
+	if not _expect_unchanged(done_before, feedback_count, "порт без канистры (E)"):
+		return false
 	if not await force_hold(_dock, _dock.hold_seconds + NOTHING_SEC):
 		return false
 	if not _expect_unchanged(done_before, feedback_count, "порт без канистры"):
 		return false
-	# Берём канистру; вторую в те же руки стеллаж не даёт.
+	# Берём канистру: метка переходит со стеллажа на порт. Вторую в те же руки стеллаж не даёт.
 	if not await _take_canister():
+		return false
+	if not await expect(func() -> bool: return _dock.is_marked() and not _rack.is_marked(), REPLY_DEADLINE_SEC,
+			"с канистрой в руках метка не перешла со стеллажа на порт"):
 		return false
 	if not await expect_no_focus(_rack):
 		return false
@@ -388,11 +417,21 @@ func _do_fuel(expected_done: int) -> bool:
 	if not await expect(func() -> bool: return me().held_item == PlayerWeapons.EMPTY_HANDS, REPLY_DEADLINE_SEC,
 			"канистра не брошена по Q"):
 		return false
+	if not await expect(func() -> bool: return _rack.is_marked() and not _dock.is_marked(), REPLY_DEADLINE_SEC,
+			"без канистры метка не вернулась на стеллаж"):
+		return false
 	if not await _take_canister():
 		return false
-	# Доставка.
-	if not await approach_and_press(_dock):
+	# Доставка: с канистрой порт предлагает обычное действие.
+	if not await approach(_dock) or not await aim(_dock):
 		return false
+	if not await expect(func() -> bool: return prompt.visible and not prompt.is_hint_shown(), REPLY_DEADLINE_SEC,
+			"у порта с канистрой HUD не показал действие"):
+		return false
+	if not check(prompt_text.text == _dock.prompt and prompt_key.visible,
+			"подсказка у порта с канистрой: «%s»" % prompt_text.text):
+		return false
+	press(&"interact")
 	var is_done: bool = await _expect_completed(_dock, expected_done)
 	release(&"interact")
 	if not is_done:

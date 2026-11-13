@@ -163,6 +163,9 @@ func test_required_stations_and_items_are_placed() -> void:
 		for second: int in range(first + 1, stands.size()):
 			assert_true(stands[first].global_position.distance_to(stands[second].global_position) >= MIN_WEAPON_SPACING,
 					"стойки %s и %s стоят в разных углах карты" % [stands[first].name, stands[second].name])
+	for dock: Node3D in _instances_of(map, "task_fuel_dock"):
+		# Название говорит, что делать: канистру сначала нужно принести (она на складе).
+		assert_eq((dock as TaskStation).title, "Отнести канистру в реактор", "название задания у порта %s" % dock.name)
 	for rack: Node3D in _instances_of(map, "canister_rack"):
 		for dock: Node3D in _instances_of(map, "task_fuel_dock"):
 			assert_true(rack.global_position.distance_to(dock.global_position) >= MIN_RACK_TO_DOCK,

@@ -21,6 +21,9 @@ func test_task_title_adds_location_only_when_set() -> void:
 	assert_eq(MatchText.task_title("", ""), MatchText.TASK_UNKNOWN, "станция неизвестна")
 	assert_eq(MatchText.task_done("Починить проводку"), "Готово: Починить проводку", "уведомление о задании")
 	assert_eq(MatchText.task_done(""), "Готово: Задание", "уведомление без названия")
+	assert_eq(MatchText.cover_task_done("Починить проводку"), "Сделано для вида: Починить проводку",
+			"уведомление предателю о фальшивом задании")
+	assert_eq(MatchText.cover_task_done(""), "Сделано для вида: Задание", "уведомление предателю без названия")
 
 
 func test_limb_messages() -> void:

@@ -1,5 +1,7 @@
 extends TestCase
-## Учёт заданий (TaskLedger): раздача, выполнение, общий счёт и «работа коллеги».
+## Учёт заданий (TaskLedger): раздача, выполнение, общий счёт и «работа коллеги» —
+## сразу (remove: о выбывшем знают все) или после объявления (retire + hand_over: убитый,
+## о котором экипаж узнаёт на собрании).
 
 const SEED: int = 20240
 const PER_PLAYER: int = 4
@@ -336,6 +338,142 @@ func test_handed_tasks_move_again_when_the_receiver_goes_out() -> void:
 	assert_eq(ledger.get_pending_count(33), 3, "все три ждут последнего живого")
 
 
+func test_retire_changes_nothing_for_the_others_until_hand_over() -> void:
+	var ledger: TaskLedger = _make_distinct_ledger()
+	var station_id: int = ledger.get_tasks(11)[0]
+	assert_true(ledger.retire(11), "живой игрок выбывает")
+	assert_true(not ledger.is_active(11) and ledger.is_awaiting_hand_over(11), "убитый не в игре и ждёт объявления")
+	assert_true(ledger.has_awaiting_hand_over(), "есть необъявленные погибшие")
+	assert_eq(ledger.get_total_count(), 3, "общее число заданий прежнее")
+	assert_eq(ledger.get_done_count(), 0, "сделанного не прибавилось")
+	assert_eq(ledger.get_tasks(22).size(), 1, "список первого живого не вырос")
+	assert_eq(ledger.get_tasks(33).size(), 1, "список второго живого не вырос")
+	assert_true(not ledger.is_pending(22, station_id) and not ledger.is_pending(33, station_id),
+			"задание убитого пока ничьё")
+	assert_true(not ledger.is_pending(11, station_id), "убитого оно тоже не ждёт")
+	assert_true(not ledger.complete(11, station_id), "убитый задание не выполняет")
+	assert_eq(ledger.get_tasks(11), PackedInt32Array([station_id]), "свой список убитый видит прежним")
+	# Живые доделали своё: работа убитого всё ещё в счёте, победы по заданиям нет.
+	ledger.complete(22, ledger.get_tasks(22)[0])
+	ledger.complete(33, ledger.get_tasks(33)[0])
+	assert_eq(ledger.get_done_count(), 2, "живые сделали свои задания")
+	assert_eq(ledger.get_total_count(), 3, "задание необъявленного погибшего остаётся в счёте")
+	# Собрание: о погибшем узнали.
+	var receivers: Array[int] = ledger.hand_over()
+	var expected: Array[int] = [22]
+	assert_eq(receivers, expected, "после объявления задание берёт первый по порядку лобби")
+	assert_true(ledger.is_pending(22, station_id), "теперь задание ждёт нового хозяина")
+	assert_eq(ledger.get_total_count(), 3, "общее число заданий не изменилось")
+	assert_true(not ledger.is_awaiting_hand_over(11) and not ledger.has_awaiting_hand_over(), "ждать больше некого")
+	assert_eq(ledger.hand_over().size(), 0, "второе объявление никому ничего не даёт")
+	assert_eq(ledger.get_tasks(22).size(), 2, "задание передано один раз")
+
+
+func test_hand_over_announces_everyone_retired_since_the_last_one() -> void:
+	var ledger: TaskLedger = TaskLedger.new()
+	var players: Array[int] = [11, 22, 33, 44]
+	var stations: PackedInt32Array = [1, 2, 3, 4]
+	var rng: RandomNumberGenerator = _make_rng()
+	var is_found: bool = false
+	for attempt: int in 500:
+		ledger.assign(players, players, stations, 1, rng)
+		var used: PackedInt32Array = []
+		for peer_id: int in players:
+			used.append(ledger.get_tasks(peer_id)[0])
+		if _unique_count(used) == players.size():
+			is_found = true
+			break
+	assert_true(is_found, "нашлась раздача, где у всех разные станции")
+	var first: int = ledger.get_tasks(44)[0]
+	var second: int = ledger.get_tasks(11)[0]
+	ledger.retire(44)
+	ledger.retire(11)
+	assert_eq(ledger.get_total_count(), 4, "до объявления счёт прежний")
+	var receivers: Array[int] = ledger.hand_over()
+	var expected: Array[int] = [22, 33]
+	assert_eq(receivers, expected, "получатели названы по порядку лобби")
+	# Сначала работа того, кто выбыл раньше (44): при равенстве её берёт 22; работу 11 —
+	# тот, у кого после этого осталось меньше (33).
+	assert_true(ledger.is_pending(22, first), "работа выбывшего первым — у первого по порядку лобби")
+	assert_true(ledger.is_pending(33, second), "работа выбывшего вторым — у того, у кого меньше осталось")
+	assert_eq(ledger.get_total_count(), 4, "общее число заданий не изменилось")
+	assert_eq(ledger.get_pending_count(22) + ledger.get_pending_count(33), 4, "вся работа у живых")
+
+
+func test_retired_player_never_receives_work() -> void:
+	var ledger: TaskLedger = _make_distinct_ledger()
+	var station_id: int = ledger.get_tasks(33)[0]
+	# 22 убит тихо, 33 вышел из игры у всех на глазах: первым по порядку лобби из тех, у кого
+	# станции нет, был бы 11, а без него — убитый 22.
+	ledger.retire(22)
+	ledger.complete(11, ledger.get_tasks(11)[0])
+	var receivers: Array[int] = ledger.remove(33)
+	var expected: Array[int] = [11]
+	assert_eq(receivers, expected, "работу вышедшего берёт живой")
+	assert_eq(ledger.get_tasks(22).size(), 1, "необъявленному погибшему работа не достаётся")
+	assert_true(ledger.is_awaiting_hand_over(22), "публичный выход другого игрока погибшего не объявляет")
+	assert_eq(ledger.get_total_count(), 3, "счёт: задание убитого и два у живого")
+	assert_true(ledger.is_pending(11, station_id), "живой получил работу вышедшего")
+
+
+func test_hand_over_drops_tasks_nobody_can_take() -> void:
+	var ledger: TaskLedger = TaskLedger.new()
+	var players: Array[int] = [11, 22, 33]
+	var stations: PackedInt32Array = [1, 2]
+	# У всех одинаковые списки: брать чужое некому.
+	ledger.assign(players, players, stations, PER_PLAYER, _make_rng())
+	ledger.complete(11, 1)
+	ledger.retire(11)
+	assert_eq(ledger.get_total_count(), 6, "до объявления несделанное задание убитого в счёте")
+	for peer_id: int in [22, 33]:
+		ledger.complete(peer_id, 1)
+		ledger.complete(peer_id, 2)
+	assert_true(ledger.get_done_count() < ledger.get_total_count(), "без собрания победы по заданиям нет")
+	assert_eq(ledger.hand_over().size(), 0, "никто ничего не получил")
+	assert_eq(ledger.get_total_count(), 5, "после объявления задание пропало из счёта")
+	assert_eq(ledger.get_done_count(), ledger.get_total_count(), "всё оставшееся сделано")
+
+
+func test_retire_of_a_traitor_or_twice_or_unknown_changes_nothing() -> void:
+	var ledger: TaskLedger = _make_ledger()
+	var total_before: int = ledger.get_total_count()
+	assert_true(ledger.retire(TRAITOR), "предатель тоже выбывает")
+	assert_true(not ledger.retire(TRAITOR), "повторно выбыть нельзя")
+	assert_true(not ledger.retire(OUTSIDER), "чужой игрок не выбывает")
+	assert_true(not ledger.is_awaiting_hand_over(OUTSIDER), "чужой игрок объявления не ждёт")
+	assert_eq(ledger.hand_over().size(), 0, "задания предателя никому не достаются")
+	assert_eq(ledger.get_total_count(), total_before, "общее число заданий прежнее")
+	for peer_id: int in CREW:
+		assert_eq(ledger.get_tasks(peer_id).size(), PER_PLAYER, "список игрока %d прежний" % peer_id)
+	ledger.remove(11)
+	assert_true(not ledger.retire(11), "выбывший у всех на глазах второй раз не выбывает")
+	assert_true(not ledger.is_awaiting_hand_over(11), "и объявления не ждёт")
+
+
+func test_remove_of_a_retired_player_hands_his_work_over_at_once() -> void:
+	var ledger: TaskLedger = _make_distinct_ledger()
+	var station_id: int = ledger.get_tasks(11)[0]
+	ledger.retire(11)
+	var receivers: Array[int] = ledger.remove(11)
+	var expected: Array[int] = [22]
+	assert_eq(receivers, expected, "объявленный отдельно погибший отдаёт работу сразу")
+	assert_true(ledger.is_pending(22, station_id), "задание у нового хозяина")
+	assert_true(not ledger.has_awaiting_hand_over(), "ждать больше некого")
+	assert_eq(ledger.hand_over().size(), 0, "повторно работа не передаётся")
+	assert_eq(ledger.get_tasks(22).size(), 2, "задание передано один раз")
+
+
+func test_new_match_forgets_the_retired() -> void:
+	var ledger: TaskLedger = _make_ledger()
+	ledger.retire(11)
+	ledger.assign(PLAYERS, CREW, STATIONS, PER_PLAYER, _make_rng())
+	assert_true(ledger.is_active(11) and not ledger.has_awaiting_hand_over(), "в новом матче погибших нет")
+	ledger.retire(33)
+	ledger.clear()
+	assert_true(not ledger.has_awaiting_hand_over(), "после конца матча ждать некого")
+	assert_eq(ledger.hand_over().size(), 0, "и передавать нечего")
+
+
 func test_clear_forgets_everything() -> void:
 	var ledger: TaskLedger = _make_ledger()
 	ledger.complete(11, ledger.get_tasks(11)[0])
@@ -349,6 +487,21 @@ func test_clear_forgets_everything() -> void:
 func _make_ledger() -> TaskLedger:
 	var ledger: TaskLedger = TaskLedger.new()
 	ledger.assign(PLAYERS, CREW, STATIONS, PER_PLAYER, _make_rng())
+	return ledger
+
+
+## Трое членов экипажа (11, 22, 33), у каждого по одному заданию, станции у всех разные.
+func _make_distinct_ledger() -> TaskLedger:
+	var ledger: TaskLedger = TaskLedger.new()
+	var players: Array[int] = [11, 22, 33]
+	var stations: PackedInt32Array = [1, 2, 3]
+	var rng: RandomNumberGenerator = _make_rng()
+	for attempt: int in 200:
+		ledger.assign(players, players, stations, 1, rng)
+		var used: PackedInt32Array = [ledger.get_tasks(11)[0], ledger.get_tasks(22)[0], ledger.get_tasks(33)[0]]
+		if _unique_count(used) == players.size():
+			return ledger
+	assert_true(false, "не нашлась раздача, где у всех разные станции")
 	return ledger
 
 

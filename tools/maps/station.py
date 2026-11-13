@@ -283,8 +283,8 @@ GAMEPLAY = [
     # Реактор
     ("free", "reactor_core", 32.0, 16.0, NORTH, {}),
     ("free", "reactor_panel", 32.0, 19.3, SOUTH, {}),
-    ("wall", "task_fuel_dock", (9, 3), "E", 0.8, task("Заправить реактор", "Реактор")),
-    ("wall", "task_fuel_dock", (9, 5), "E", -0.8, task("Заправить реактор", "Реактор")),
+    ("wall", "task_fuel_dock", (9, 3), "E", 0.8, task("Отнести канистру в реактор", "Реактор")),
+    ("wall", "task_fuel_dock", (9, 5), "E", -0.8, task("Отнести канистру в реактор", "Реактор")),
     ("wall", "task_calibrator", (7, 5), "W", 0.6, task("Откалибровать давление", "Реактор")),
     # Склад
     ("wall", "canister_rack", (0, 5), "S", 2.0, {}),
