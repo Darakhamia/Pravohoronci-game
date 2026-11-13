@@ -3,6 +3,11 @@
 [ext_resource type="Script" uid="uid://dvunxmqbesf67" path="res://scripts/gameplay/player.gd" id="1_player"]
 [ext_resource type="PackedScene" uid="uid://c13yt3t7n5sow" path="res://scenes/characters/player_visuals.tscn" id="2_visuals"]
 [ext_resource type="Script" uid="uid://1rocpjkpqms" path="res://scripts/gameplay/player_input.gd" id="3_input"]
+[ext_resource type="Script" path="res://scripts/gameplay/player_body.gd" id="4_body"]
+[ext_resource type="Script" path="res://scripts/gameplay/player_weapons.gd" id="5_weapons"]
+[ext_resource type="Script" path="res://scripts/gameplay/interaction/player_interactor.gd" id="6_interactor"]
+[ext_resource type="Script" path="res://scripts/gameplay/interaction/corpse_report.gd" id="7_corpse"]
+[ext_resource type="PackedScene" path="res://scenes/characters/viewmodel.tscn" id="8_viewmodel"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.35
@@ -24,6 +29,15 @@ properties/3/replication_mode = 1
 properties/4/path = NodePath(".:display_name")
 properties/4/spawn = true
 properties/4/replication_mode = 0
+properties/5/path = NodePath(".:life")
+properties/5/spawn = true
+properties/5/replication_mode = 2
+properties/6/path = NodePath(".:limbs_lost")
+properties/6/spawn = true
+properties/6/replication_mode = 2
+properties/7/path = NodePath(".:held_item")
+properties/7/spawn = true
+properties/7/replication_mode = 2
 
 [node name="Player" type="CharacterBody3D" unique_id=1081432078]
 collision_layer = 2
@@ -41,8 +55,24 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
 
 [node name="Camera3D" type="Camera3D" parent="Head" unique_id=2133476442]
 
+[node name="Viewmodel" parent="Head/Camera3D" instance=ExtResource("8_viewmodel")]
+
 [node name="StateSync" type="MultiplayerSynchronizer" parent="." unique_id=836986728]
 replication_config = SubResource("SceneReplicationConfig_state")
 
 [node name="Input" type="Node" parent="." unique_id=1073791915]
 script = ExtResource("3_input")
+
+[node name="Body" type="Node" parent="."]
+script = ExtResource("4_body")
+
+[node name="Weapons" type="Node" parent="."]
+script = ExtResource("5_weapons")
+
+[node name="Interactor" type="Node" parent="."]
+script = ExtResource("6_interactor")
+
+[node name="Corpse" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
+script = ExtResource("7_corpse")
+prompt = "Сообщить о теле"

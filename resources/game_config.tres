@@ -6,3 +6,17 @@
 script = ExtResource("1_gamecfg")
 min_players = 5
 map_scene = "res://scenes/maps/test_map.tscn"
+players_for_one_traitor = 3
+players_for_two_traitors = 7
+role_reveal_seconds = 5.0
+results_seconds = 10.0
+tasks_per_player = 4
+meeting_discussion_seconds = 15.0
+meeting_voting_seconds = 30.0
+meeting_verdict_seconds = 6.0
+emergency_meetings_per_player = 1
+emergency_cooldown_seconds = 20.0
+reveal_role_on_eject = true
+sabotage_countdown_seconds = 45.0
+sabotage_cooldown_seconds = 60.0
+sabotage_first_delay_seconds = 30.0

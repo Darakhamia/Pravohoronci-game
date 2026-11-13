@@ -6,6 +6,8 @@ enum Part { HEAD, TORSO, LEFT_ARM, RIGHT_ARM, LEFT_LEG, RIGHT_LEG }
 
 ## Конечности, которые можно потерять.
 const LIMBS: Array[Part] = [Part.LEFT_ARM, Part.RIGHT_ARM, Part.LEFT_LEG, Part.RIGHT_LEG]
+const ARM_COUNT: int = 2
+const LEG_COUNT: int = 2
 
 
 ## Бит части тела в маске потерянных конечностей.

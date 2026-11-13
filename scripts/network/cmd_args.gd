@@ -28,6 +28,11 @@ static func get_int(key: String, default_value: int, min_value: int, max_value: 
 	return get_int_in(get_all(), key, default_value, min_value, max_value)
 
 
+## Все значения ключа, который можно указать несколько раз: --set=a=1 --set=b=2.
+static func get_values(key: String) -> PackedStringArray:
+	return get_values_in(get_all(), key)
+
+
 static func has_flag_in(args: PackedStringArray, flag: String) -> bool:
 	return args.has(flag)
 
@@ -38,6 +43,15 @@ static func get_value_in(args: PackedStringArray, key: String, default_value: St
 		if arg.begins_with(prefix):
 			return arg.substr(prefix.length())
 	return default_value
+
+
+static func get_values_in(args: PackedStringArray, key: String) -> PackedStringArray:
+	var prefix: String = key + "="
+	var values: PackedStringArray = []
+	for arg: String in args:
+		if arg.begins_with(prefix):
+			values.append(arg.substr(prefix.length()))
+	return values
 
 
 ## Не число -> default_value, иначе значение зажимается в [min_value, max_value].

@@ -1,0 +1,72 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://tests/visual/character_preview.gd" id="1_preview"]
+
+[sub_resource type="Environment" id="Environment_stage"]
+background_mode = 1
+background_color = Color(0.055, 0.063, 0.125, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.6, 0.65, 0.86, 1)
+ambient_light_energy = 0.5
+tonemap_mode = 2
+ssao_enabled = true
+glow_enabled = true
+glow_intensity = 0.55
+glow_bloom = 0.04
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
+albedo_color = Color(0.09, 0.102, 0.188, 1)
+roughness = 0.75
+
+[sub_resource type="BoxMesh" id="BoxMesh_floor"]
+material = SubResource("StandardMaterial3D_floor")
+size = Vector3(40, 0.2, 40)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+size = Vector3(40, 0.2, 40)
+
+[node name="CharacterPreview" type="Node3D"]
+script = ExtResource("1_preview")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_stage")
+
+[node name="KeyLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.819, 0.329, -0.47, 0, 0.819, 0.574, 0.574, -0.47, 0.671, 0, 5, 0)
+light_energy = 1.25
+shadow_enabled = true
+shadow_blur = 1.5
+
+[node name="FillLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.766, -0.22, 0.604, 0, 0.94, 0.342, -0.643, -0.262, 0.72, 0, 5, 0)
+light_color = Color(0.62, 0.76, 1, 1)
+light_energy = 0.4
+
+[node name="RimLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-1, 0, 0, 0, 0.766, 0.643, 0, 0.643, -0.766, 0, 5, 0)
+light_color = Color(0.66, 0.5, 1, 1)
+light_energy = 0.5
+
+[node name="Floor" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+
+[node name="Mesh" type="MeshInstance3D" parent="Floor"]
+mesh = SubResource("BoxMesh_floor")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor"]
+shape = SubResource("BoxShape3D_floor")
+
+[node name="Actors" type="Node3D" parent="."]
+
+[node name="StageCamera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.985, 0.174, 0, -0.174, 0.985, 0, 1.9, 6.4)
+current = true
+fov = 50.0
+
+[node name="Viewer" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3.4)
+
+[node name="ViewCamera" type="Camera3D" parent="Viewer"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+fov = 70.0
+near = 0.05

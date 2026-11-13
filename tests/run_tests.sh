@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Все проверки перед PR одной командой: импорт проекта, модульные тесты, дымовой тест.
+# Все проверки перед PR одной командой: импорт проекта, модульные тесты, дымовой тест, сценарии.
 #   GODOT=<путь к godot>   по умолчанию "godot" из PATH
 # Останавливается на первом провале. Код выхода 0 — всё прошло, 1 — нет.
 set -u
@@ -104,6 +104,23 @@ RUN_PID=""
 if [ "$smoke_code" -ne 0 ]; then
 	failed "дымовой тест"
 fi
+
+# Сценарии: сервер и несколько ботов проходят куски матча (tests/scenarios/*.cfg).
+for scenario_config in tests/scenarios/*.cfg; do
+	if [ ! -f "$scenario_config" ]; then
+		continue
+	fi
+	scenario_name="$(basename "$scenario_config" .cfg)"
+	echo "TESTS: сценарий $scenario_name"
+	bash tests/scenarios/run_scenario.sh "$scenario_name" &
+	RUN_PID=$!
+	wait "$RUN_PID"
+	scenario_code=$?
+	RUN_PID=""
+	if [ "$scenario_code" -ne 0 ]; then
+		failed "сценарий $scenario_name"
+	fi
+done
 
 echo "TESTS: OK"
 exit 0

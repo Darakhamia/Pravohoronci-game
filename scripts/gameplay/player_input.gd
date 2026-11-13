@@ -7,6 +7,14 @@ extends Node
 signal sampled(direction: Vector2, yaw: float, pitch: float)
 ## Клиент-владелец: нажат прыжок.
 signal jump_pressed
+## Клиент-владелец: нажата атака (выстрел или удар).
+signal fire_pressed
+## Клиент-владелец: нажата смена оружия.
+signal switch_weapon_pressed
+## Клиент-владелец: нажат саботаж.
+signal sabotage_pressed
+## Клиент-владелец: клавишу действия нажали (true) или отпустили (false).
+signal interact_changed(pressed: bool)
 
 ## Чуть меньше 90°, чтобы камера не переворачивалась через зенит.
 const MAX_PITCH: float = deg_to_rad(89.0)
@@ -19,6 +27,8 @@ var pitch: float = 0.0
 ## Владелец: false — игрок стоит, мышь и прыжок не действуют (пауза в HUD).
 var enabled: bool = true
 
+## Владелец: зажата ли сейчас клавиша действия.
+var _is_interact_down: bool = false
 var _move_direction: Vector2 = Vector2.ZERO
 var _jump_queued: bool = false
 var _has_input: bool = false
@@ -36,8 +46,20 @@ func _physics_process(_delta: float) -> void:
 		direction = Input.get_vector(&"move_left", &"move_right", &"move_forward", &"move_back")
 	sampled.emit(direction, yaw, pitch)
 	# Опрос, а не событие: Input.action_press() у ботов событий не создаёт.
-	if enabled and Input.is_action_just_pressed(&"jump"):
-		jump_pressed.emit()
+	if enabled:
+		if Input.is_action_just_pressed(&"jump"):
+			jump_pressed.emit()
+		if Input.is_action_just_pressed(&"fire"):
+			fire_pressed.emit()
+		if Input.is_action_just_pressed(&"switch_weapon"):
+			switch_weapon_pressed.emit()
+		if Input.is_action_just_pressed(&"sabotage"):
+			sabotage_pressed.emit()
+	# Пауза отпускает клавишу действия: удержание не должно продолжаться под меню.
+	var is_interact_down: bool = enabled and Input.is_action_pressed(&"interact")
+	if is_interact_down != _is_interact_down:
+		_is_interact_down = is_interact_down
+		interact_changed.emit(is_interact_down)
 
 
 ## _input, а не _unhandled_input: при захваченной мыши события приходят в центр экрана,

@@ -91,3 +91,11 @@ func _assert_endpoint(text: String, address: String, port: int) -> void:
 	var endpoint: Dictionary = CmdArgs.parse_endpoint(text, DEFAULT_PORT)
 	assert_eq(endpoint.get("address"), address, "адрес из \"%s\"" % text)
 	assert_eq(endpoint.get("port"), port, "порт из \"%s\"" % text)
+
+
+func test_get_values_collects_repeated_keys() -> void:
+	var args: PackedStringArray = ["--set=a=1", "--other", "--set=b=2", "--setting=3", "--set", "--set="]
+	assert_eq(CmdArgs.get_values_in(args, "--set"), PackedStringArray(["a=1", "b=2", ""]), "все значения по порядку")
+	assert_eq(CmdArgs.get_values_in(args, "--missing"), PackedStringArray(), "ключа нет")
+	assert_eq(CmdArgs.get_values_in(PackedStringArray(), "--set"), PackedStringArray(), "пустой список")
+

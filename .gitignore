@@ -13,3 +13,10 @@
 Thumbs.db
 *.tmp
 *~
+
+# Скриншоты предпросмотра (tests/visual с флагом --shots)
+/out/
+
+# Кэш Python от генераторов моделей (tools/assets)
+__pycache__/
+*.pyc

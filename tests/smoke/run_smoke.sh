@@ -98,7 +98,8 @@ mkdir -p "$LOG_DIR"
 rm -f "$SERVER_LOG" "$BOT_A_LOG" "$BOT_B_LOG"
 
 echo "SMOKE: сервер на порту $PORT"
-"$GODOT" --headless --server --port="$PORT" --min-players="$PLAYERS" >"$SERVER_LOG" 2>&1 &
+# Без паузы на показ ролей: боты начинают ходить сразу после старта матча.
+"$GODOT" --headless --server --port="$PORT" --min-players="$PLAYERS" --set=role_reveal_seconds=0 >"$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
 
 waited_sec=0
