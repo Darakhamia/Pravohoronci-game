@@ -1,13 +1,28 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://scripts/gameplay/interaction/task_station.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/gameplay/interaction/task_fuel_dock.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://assets/models/props/canister_dock.glb" id="2_model"]
+[ext_resource type="Script" path="res://scripts/gameplay/interaction/task_marker.gd" id="3_marker"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_body"]
+size = Vector3(1.05, 1.1, 0.67)
 
 [node name="TaskFuelDock" type="Node3D"]
 script = ExtResource("1_script")
-prompt = "Заправить"
+title = "Заправить генератор"
+prompt = "Залить топливо"
 hold_seconds = 1.5
-focus_offset = Vector3(0, 0.8, 0)
-title = "Заправить реактор"
+focus_offset = Vector3(0, 1.0, -0.42)
 
 [node name="Model" parent="." instance=ExtResource("2_model")]
+
+[node name="Body" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.09, 0.55, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Body"]
+shape = SubResource("BoxShape3D_body")
+
+[node name="Marker" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+visible = false
+script = ExtResource("3_marker")

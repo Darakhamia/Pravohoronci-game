@@ -2,11 +2,27 @@
 
 [ext_resource type="Script" path="res://scripts/gameplay/interaction/reactor_panel.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://assets/models/props/reactor_panel.glb" id="2_model"]
+[ext_resource type="Script" path="res://scripts/gameplay/interaction/task_marker.gd" id="3_marker"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_body"]
+size = Vector3(1.36, 1.17, 0.68)
 
 [node name="ReactorPanel" type="Node3D"]
 script = ExtResource("1_script")
-prompt = "Остудить реактор"
+prompt = "Чинить реактор"
 hold_seconds = 5.0
-focus_offset = Vector3(0, 1.0, 0)
+focus_offset = Vector3(0, 1.05, -0.42)
 
 [node name="Model" parent="." instance=ExtResource("2_model")]
+
+[node name="Body" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.585, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Body"]
+shape = SubResource("BoxShape3D_body")
+
+[node name="Marker" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+visible = false
+script = ExtResource("3_marker")
+color = Color(1, 0.25, 0.2, 1)

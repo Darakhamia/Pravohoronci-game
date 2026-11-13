@@ -1,10 +1,10 @@
 [gd_scene format=3]
 
+[ext_resource type="Script" path="res://scripts/gameplay/interaction/sabotage_alarm.gd" id="1_script"]
 
-[node name="SabotageAlarm" type="Node3D"]
-
-[node name="Light" type="OmniLight3D" parent="."]
+[node name="SabotageAlarm" type="OmniLight3D"]
 visible = false
-light_color = Color(1, 0.365, 0.451, 1)
-light_energy = 2.0
-omni_range = 7.0
+light_color = Color(1, 0.12, 0.08, 1)
+light_energy = 4.0
+omni_range = 10.0
+script = ExtResource("1_script")

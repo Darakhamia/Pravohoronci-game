@@ -1,13 +1,19 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://scripts/gameplay/interaction/task_station.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/gameplay/interaction/task_wiring.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://assets/models/props/task_panel.glb" id="2_model"]
+[ext_resource type="Script" path="res://scripts/gameplay/interaction/task_marker.gd" id="3_marker"]
 
 [node name="TaskWiring" type="Node3D"]
 script = ExtResource("1_script")
-prompt = "Починить проводку"
-hold_seconds = 4.0
-focus_offset = Vector3(0, 0, -0.1)
 title = "Починить проводку"
+prompt = "Чинить проводку"
+hold_seconds = 4.0
+focus_offset = Vector3(0, 0, -0.3)
 
 [node name="Model" parent="." instance=ExtResource("2_model")]
+
+[node name="Marker" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, -0.25)
+visible = false
+script = ExtResource("3_marker")
