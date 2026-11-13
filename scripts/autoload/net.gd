@@ -25,6 +25,9 @@ const SERVER_ID: int = 1
 ## Соединений принимаем больше, чем игроков: лишнему нужно успеть объяснить отказ.
 const SPARE_CONNECTIONS: int = 4
 const CONNECT_TIMEOUT_SEC: float = 8.0
+## Сервер: имя длиннее этого обрезаем до разбора. Иначе мегабайтная строка от любого
+## подключившегося заняла бы главный поток сервера на секунды.
+const MAX_RAW_NAME_LENGTH: int = 64
 const REGISTER_TIMEOUT_SEC: float = 5.0
 
 const REASON_CONNECT_FAILED: String = "Не удалось подключиться к серверу"
@@ -178,7 +181,8 @@ func _register(player_name: String, protocol_version: int) -> void:
 		_kick(sender, REASON_SERVER_FULL)
 		return
 	_unregistered.erase(sender)
-	players[sender] = PlayerName.make_unique(PlayerName.sanitize(player_name), PackedStringArray(players.values()))
+	var clean_name: String = PlayerName.sanitize(player_name.left(MAX_RAW_NAME_LENGTH))
+	players[sender] = PlayerName.make_unique(clean_name, PackedStringArray(players.values()))
 	player_colors[sender] = _first_free_color()
 	if host_id == 0:
 		host_id = sender

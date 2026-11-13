@@ -109,7 +109,8 @@ func _ready() -> void:
 		rotation.y = sync_yaw
 		_interpolator.reset(sync_position, sync_tick)
 		_state_sync.synchronized.connect(_on_state_synchronized)
-		_visuals.set_body_color(PlayerPalette.color(Net.get_player_color(peer_id)))
+		# Вошедший посреди матча получает аватары раньше списка лобби: цвет узнаем позже.
+		Net.lobby_changed.connect(_show_color)
 		# Опоздавший видит уже потерянные конечности без эффекта отлёта.
 		_visuals.set_limbs_lost(limbs_lost, false)
 		limbs_changed.connect(_visuals.set_limbs_lost)
@@ -122,7 +123,6 @@ func _ready() -> void:
 		interactor.activate()
 		_camera.fov = Settings.fov
 		_camera.make_current()
-		_viewmodel.set_body_color(PlayerPalette.color(Net.get_player_color(peer_id)))
 		_viewmodel.set_limbs_lost(limbs_lost)
 		limbs_changed.connect(_viewmodel.set_limbs_lost)
 	else:
@@ -132,6 +132,7 @@ func _ready() -> void:
 		_camera = null
 		_viewmodel = null
 	if not on_server:
+		_show_color()
 		_show_held_item()
 		_show_life()
 
@@ -268,6 +269,18 @@ func _on_state_synchronized() -> void:
 ## Сервер: роли розданы — выдаём оружие по роли.
 func _on_round_started() -> void:
 	weapons.server_reset(Game.get_role(peer_id))
+
+
+## Клиент: покрасить скафандр в цвет игрока. Пока цвет неизвестен (список лобби ещё
+## не пришёл) или хозяин тела уже вышел из игры, оставляем прежний.
+func _show_color() -> void:
+	var slot: int = Net.get_player_color(peer_id)
+	if slot < 0:
+		return
+	var color: Color = PlayerPalette.color(slot)
+	_visuals.set_body_color(color)
+	if _viewmodel != null:
+		_viewmodel.set_body_color(color)
 
 
 ## Клиент: показать предмет в руках.

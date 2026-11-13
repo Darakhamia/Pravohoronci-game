@@ -188,9 +188,10 @@ func server_participant_out(peer_id: int) -> void:
 	server_check_win()
 
 
-## Сервер: проверить условия победы. Вызывается после каждой смерти и каждого задания.
+## Сервер: проверить условия победы. Вызывается после каждой смерти, выхода игрока
+## и каждого задания — в том числе во время показа ролей: игрок может выйти и тогда.
 func server_check_win() -> void:
-	if not Net.is_server() or (phase != Phase.PLAYING and phase != Phase.MEETING):
+	if not Net.is_server() or phase == Phase.NONE or phase == Phase.ENDED:
 		return
 	var traitors_alive: int = 0
 	var crew_alive: int = 0

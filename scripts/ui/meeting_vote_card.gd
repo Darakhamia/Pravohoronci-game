@@ -10,7 +10,7 @@ enum Mark { NONE, OWN_VOTE, EJECTED }
 
 const TEXT_OWN_VOTE: String = "Твой голос"
 const TEXT_EJECTED: String = "За борт"
-const TEXT_DEAD: String = "выбыл"
+const TEXT_DEAD: String = "вне игры"
 const TEXT_COUNT: String = "%d"
 const CARD_STYLE: StringName = &"VoteCard"
 const CARD_CHOSEN_STYLE: StringName = &"VoteCardChosen"
@@ -106,7 +106,7 @@ func _refresh() -> void:
 	_count.visible = has_voters
 	_count.theme_type_variation = COUNT_EJECTED_STYLE if _mark == Mark.EJECTED else COUNT_STYLE
 	_fit_name()
-	# Под именем — что-то одно: шлемы голосовавших или «выбыл».
+	# Под именем — что-то одно: шлемы голосовавших или «вне игры».
 	_state.visible = not _alive and not has_voters
 	if _mark == Mark.EJECTED:
 		theme_type_variation = CARD_EJECTED_STYLE

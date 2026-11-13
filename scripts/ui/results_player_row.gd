@@ -1,13 +1,13 @@
 class_name ResultsPlayerRow
 extends VBoxContainer
-## Строка участника на экране итогов: шлем, имя, метка «ты» и «выбыл» для тех, кто не дожил.
+## Строка участника на экране итогов: шлем, имя, метка «ты» и «вне игры» для тех, кто не дожил.
 ## Роль видна по колонке, в которой стоит строка. Данные приходят от ResultsScreen.
 
-const TEXT_OUT: String = "выбыл"
+const TEXT_OUT: String = "вне игры"
 const NAME_STYLE: StringName = &"LabelStrong"
 const NAME_OUT_STYLE: StringName = &"LabelStrongDim"
 ## Ширина строки: колонка команды на экране итогов. Имя шире обрезается многоточием,
-## а шлем, метка «ты» и «выбыл» забирают у него своё место.
+## а шлем, метка «ты» и «вне игры» забирают у него своё место.
 const ROW_WIDTH: float = 480.0
 
 @onready var _content: HBoxContainer = %Content

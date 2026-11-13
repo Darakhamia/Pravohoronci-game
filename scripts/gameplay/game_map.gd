@@ -195,6 +195,9 @@ func _on_meeting_started() -> void:
 	for player: Player in get_players():
 		if player.life == Player.Life.CORPSE:
 			player.server_set_life(Player.Life.GONE)
+			# Тело вышедшего игрока больше никому не нужно.
+			if not Net.players.has(player.peer_id):
+				player.queue_free()
 		elif player.life == Player.Life.ALIVE and not seats.is_empty():
 			var seat: Marker3D = seats[seat_index % seats.size()]
 			seat_index += 1
@@ -228,9 +231,11 @@ func _on_local_life_changed(new_life: Player.Life, player: Player) -> void:
 	_ghost.setup(player.input, player.get_eye_position(), ghost_bounds)
 
 
+## Сервер: игрок вышел из игры. Живой аватар убираем сразу, а тело убитого остаётся
+## лежать до ближайшего собрания: иначе убийца избавлялся бы от улики чужим выходом.
 func _on_net_player_left(peer_id: int) -> void:
 	var player: Player = get_player(peer_id)
-	if player != null:
+	if player != null and player.life != Player.Life.CORPSE:
 		player.queue_free()
 
 
