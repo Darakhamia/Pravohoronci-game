@@ -7,7 +7,7 @@ const FALLBACK: String = "Игрок"
 
 const FIRST_DUPLICATE_NUMBER: int = 2
 
-## Пробельные символы Юникода, кроме управляющих (те просто удаляются).
+## Отдельные пробельные символы Юникода; диапазоны проверяет _is_whitespace().
 const WHITESPACE_CODES: PackedInt32Array = [0x0020, 0x00A0, 0x1680, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000]
 
 
@@ -18,10 +18,11 @@ static func sanitize(raw: String) -> String:
 	var space_pending: bool = false
 	for index: int in raw.length():
 		var code: int = raw.unicode_at(index)
-		if _is_removed(code):
-			continue
+		# Сначала пробелы: табуляция и перевод строки — тоже разделители слов.
 		if _is_whitespace(code):
 			space_pending = not result.is_empty()
+			continue
+		if _is_removed(code):
 			continue
 		if space_pending:
 			result += " "
@@ -58,4 +59,8 @@ static func _is_removed(code: int) -> bool:
 
 
 static func _is_whitespace(code: int) -> bool:
-	return (code >= 0x2000 and code <= 0x200A) or WHITESPACE_CODES.has(code)
+	return (
+		(code >= 0x0009 and code <= 0x000D)
+		or (code >= 0x2000 and code <= 0x200A)
+		or WHITESPACE_CODES.has(code)
+	)

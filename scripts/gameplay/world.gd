@@ -9,11 +9,16 @@ signal map_changed(map: GameMap)
 
 var current_map: GameMap = null
 
+## Загружена заранее. Иначе клиент грузил бы карту прямо во время приёма спавна
+## и на это время переставал бы отвечать серверу.
+var _map_scene: PackedScene = null
+
 @onready var _map_spawner: MultiplayerSpawner = $MapSpawner
 
 
 func _ready() -> void:
 	# Путь к карте живёт только в game_config.tres.
+	_map_scene = load(Game.CONFIG.map_scene) as PackedScene
 	_map_spawner.add_spawnable_scene(Game.CONFIG.map_scene)
 	_map_spawner.spawned.connect(_on_map_spawned)
 	_map_spawner.despawned.connect(_on_map_despawned)
@@ -34,8 +39,7 @@ func _on_state_changed(new_state: Game.State) -> void:
 
 
 func _load_map() -> void:
-	var scene: PackedScene = load(Game.CONFIG.map_scene) as PackedScene
-	var map: GameMap = scene.instantiate() as GameMap if scene != null else null
+	var map: GameMap = _map_scene.instantiate() as GameMap if _map_scene != null else null
 	if map == null:
 		push_error("Сцена карты не найдена или её корень не GameMap: %s" % Game.CONFIG.map_scene)
 		return

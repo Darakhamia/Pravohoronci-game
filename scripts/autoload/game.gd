@@ -70,11 +70,12 @@ func _send_state_to_players() -> void:
 	if not Net.is_server():
 		return
 	for peer_id: int in Net.players:
-		_sync_state.rpc_id(peer_id, state, min_players)
+		if Net.is_peer_reachable(peer_id):
+			_sync_state.rpc_id(peer_id, state, min_players)
 
 
 func _on_player_joined(peer_id: int) -> void:
-	if Net.is_server():
+	if Net.is_peer_reachable(peer_id):
 		_sync_state.rpc_id(peer_id, state, min_players)
 
 

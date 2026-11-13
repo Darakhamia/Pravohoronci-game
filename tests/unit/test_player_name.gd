@@ -38,8 +38,6 @@ func test_sanitize_empty_gives_fallback() -> void:
 
 
 func test_sanitize_removes_control_and_invisible() -> void:
-	assert_eq(PlayerName.sanitize("Ва" + char(LINE_FEED) + "ся"), "Вася", "перевод строки")
-	assert_eq(PlayerName.sanitize("Ва" + char(TAB) + "ся"), "Вася", "табуляция")
 	assert_eq(PlayerName.sanitize("Ва" + char(DELETE) + char(NEXT_LINE) + "ся"), "Вася", "DEL и управляющие C1")
 	assert_eq(PlayerName.sanitize("Ва" + char(ZERO_WIDTH_SPACE) + "ся"), "Вася", "пробел нулевой ширины")
 	assert_eq(PlayerName.sanitize(char(BYTE_ORDER_MARK) + "Вася"), "Вася", "BOM в начале")
@@ -51,6 +49,8 @@ func test_sanitize_removes_control_and_invisible() -> void:
 func test_sanitize_collapses_whitespace() -> void:
 	assert_eq(PlayerName.sanitize("  Вася  "), "Вася", "пробелы по краям")
 	assert_eq(PlayerName.sanitize("Вася     Пупкин"), "Вася Пупкин", "несколько пробелов подряд")
+	assert_eq(PlayerName.sanitize("Вася" + char(TAB) + "Пупкин"), "Вася Пупкин", "табуляция — разделитель слов")
+	assert_eq(PlayerName.sanitize("Вася" + char(LINE_FEED) + "Пупкин"), "Вася Пупкин", "перевод строки — разделитель слов")
 	assert_eq(
 			PlayerName.sanitize("Вася" + char(NO_BREAK_SPACE) + char(IDEOGRAPHIC_SPACE) + "Пупкин"),
 			"Вася Пупкин", "юникодные пробелы")

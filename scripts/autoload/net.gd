@@ -22,10 +22,10 @@ const MAX_PLAYERS: int = 8
 const PROTOCOL_VERSION: int = 1
 const SERVER_ID: int = 1
 
+## Соединений принимаем больше, чем игроков: лишнему нужно успеть объяснить отказ.
+const SPARE_CONNECTIONS: int = 4
 const CONNECT_TIMEOUT_SEC: float = 8.0
 const REGISTER_TIMEOUT_SEC: float = 5.0
-## Причина кика доходит до клиента, только если подождать перед разрывом соединения.
-const KICK_DELAY_SEC: float = 1.0
 
 const REASON_CONNECT_FAILED: String = "Не удалось подключиться к серверу"
 const REASON_NO_RESPONSE: String = "Сервер не отвечает"
@@ -63,7 +63,7 @@ func start_server(port: int = DEFAULT_PORT) -> Error:
 	if status != Status.OFFLINE:
 		return ERR_ALREADY_IN_USE
 	var peer := ENetMultiplayerPeer.new()
-	var error: Error = peer.create_server(port, MAX_PLAYERS)
+	var error: Error = peer.create_server(port, MAX_PLAYERS + SPARE_CONNECTIONS)
 	if error != OK:
 		return error
 	_session += 1
@@ -122,6 +122,15 @@ func get_player_name(peer_id: int) -> String:
 	return players[peer_id] if players.has(peer_id) else ""
 
 
+## Сервер: можно ли сейчас отправлять этому пиру. Пир, который отключился в этом же
+## опросе сети, ещё числится подключённым, но отправка ему даёт ошибку движка.
+func is_peer_reachable(peer_id: int) -> bool:
+	if not is_server() or not multiplayer.get_peers().has(peer_id):
+		return false
+	var enet: ENetMultiplayerPeer = multiplayer.multiplayer_peer as ENetMultiplayerPeer
+	return enet.get_peer(peer_id).get_state() == ENetPacketPeer.STATE_CONNECTED
+
+
 # --- Сервер ---
 
 
@@ -173,7 +182,8 @@ func _register(player_name: String, protocol_version: int) -> void:
 ## Только зарегистрированным: остальные пиры о лобби знать не должны.
 func _send_lobby_to_players() -> void:
 	for peer_id: int in players:
-		_lobby_snapshot.rpc_id(peer_id, players, host_id)
+		if is_peer_reachable(peer_id):
+			_lobby_snapshot.rpc_id(peer_id, players, host_id)
 
 
 func _first_player_id() -> int:
@@ -188,15 +198,15 @@ func _watch_registration(peer_id: int, session: int) -> void:
 		_kick(peer_id, REASON_NOT_REGISTERED)
 
 
-## Сообщает пиру причину и чуть позже рвёт соединение.
-## Из лобби игрока убирает _on_peer_disconnected, когда соединение закроется.
+## Сообщает пиру причину и рвёт соединение.
 func _kick(peer_id: int, reason: String) -> void:
 	_unregistered.erase(peer_id)
+	if not is_peer_reachable(peer_id):
+		return
 	_kicked.rpc_id(peer_id, reason)
-	var session: int = _session
-	await get_tree().create_timer(KICK_DELAY_SEC).timeout
-	if session == _session and multiplayer.get_peers().has(peer_id):
-		multiplayer.multiplayer_peer.disconnect_peer(peer_id)
+	# Разрыв только после доставки: обычный disconnect_peer() обгоняет RPC, и причина теряется.
+	var enet: ENetMultiplayerPeer = multiplayer.multiplayer_peer as ENetMultiplayerPeer
+	enet.get_peer(peer_id).peer_disconnect_later()
 
 
 # --- Клиент ---

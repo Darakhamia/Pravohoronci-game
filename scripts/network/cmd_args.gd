@@ -5,6 +5,8 @@ extends RefCounted
 
 const MIN_PORT: int = 1
 const MAX_PORT: int = 65535
+## Больше цифр в int64 не помещается: to_int() на таком тексте пишет ошибку движка.
+const MAX_INT_TEXT_LENGTH: int = 18
 
 
 ## Аргументы движка плюс пользовательские (всё, что после "--").
@@ -41,7 +43,7 @@ static func get_value_in(args: PackedStringArray, key: String, default_value: St
 ## Не число -> default_value, иначе значение зажимается в [min_value, max_value].
 static func get_int_in(args: PackedStringArray, key: String, default_value: int, min_value: int, max_value: int) -> int:
 	var text: String = get_value_in(args, key).strip_edges()
-	if not text.is_valid_int():
+	if not _is_int_text(text):
 		return default_value
 	return clampi(text.to_int(), min_value, max_value)
 
@@ -72,9 +74,13 @@ static func parse_endpoint(text: String, default_port: int) -> Dictionary:
 
 static func _parse_port(text: String, default_port: int) -> int:
 	var clean: String = text.strip_edges()
-	if not clean.is_valid_int():
+	if not _is_int_text(clean):
 		return default_port
 	var port: int = clean.to_int()
 	if port < MIN_PORT or port > MAX_PORT:
 		return default_port
 	return port
+
+
+static func _is_int_text(text: String) -> bool:
+	return text.is_valid_int() and text.length() <= MAX_INT_TEXT_LENGTH

@@ -56,6 +56,11 @@ func get_players() -> Array[Player]:
 
 
 func _spawn_player(id: int) -> void:
+	# Узел с тем же именем сдвинул бы имя нового (12 -> 13), и аватар достался бы чужому id.
+	var stale: Player = get_player(id)
+	if stale != null:
+		_players.remove_child(stale)
+		stale.queue_free()
 	var index: int = _spawn_points_by_peer.size() % _spawn_points.get_child_count()
 	var spawn_point: Marker3D = _spawn_points.get_child(index) as Marker3D
 	var player: Player = PLAYER_SCENE.instantiate() as Player
