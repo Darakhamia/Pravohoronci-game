@@ -4,10 +4,12 @@
 [ext_resource type="PackedScene" path="res://assets/models/characters/crewmate.glb" id="2_model"]
 [ext_resource type="PackedScene" path="res://scenes/characters/limb_prop.tscn" id="3_limb"]
 [ext_resource type="FontFile" path="res://assets/fonts/Onest.ttf" id="4_font"]
+[ext_resource type="PackedScene" path="res://scenes/characters/limb_burst.tscn" id="5_burst"]
 
 [node name="PlayerVisuals" type="Node3D" unique_id=1284961988]
 script = ExtResource("1_visuals")
 limb_prop_scene = ExtResource("3_limb")
+limb_burst_scene = ExtResource("5_burst")
 
 [node name="Model" parent="." instance=ExtResource("2_model")]
 

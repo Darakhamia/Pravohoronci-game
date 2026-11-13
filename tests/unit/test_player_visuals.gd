@@ -4,6 +4,7 @@ extends TestCase
 
 const VISUALS_SCENE: PackedScene = preload("res://scenes/characters/player_visuals.tscn")
 const VIEWMODEL_SCENE: PackedScene = preload("res://scenes/characters/viewmodel.tscn")
+const BURST_SCENE: PackedScene = preload("res://scenes/characters/limb_burst.tscn")
 const PISTOL_SCENE: PackedScene = preload("res://assets/models/weapons/pistol.glb")
 const KNIFE_SCENE: PackedScene = preload("res://assets/models/weapons/knife.glb")
 
@@ -16,7 +17,7 @@ const LIMB_MESHES: Dictionary[int, String] = {
 	BodyPart.Part.LEFT_LEG: "LegLeft",
 	BodyPart.Part.RIGHT_LEG: "LegRight",
 }
-const BODY_MESHES: PackedStringArray = ["HeadPiece", "FacePlate", "FaceEyes", "TorsoPiece", "PelvisPiece"]
+const BODY_MESHES: PackedStringArray = ["HeadPiece", "VisorGlass", "FacePlate", "TorsoPiece", "PelvisPiece"]
 const BONES: PackedStringArray = [
 	"Hips", "Spine", "Chest", "Neck", "Head",
 	"LeftUpperArm", "LeftLowerArm", "LeftHand", "RightUpperArm", "RightLowerArm", "RightHand",
@@ -28,6 +29,19 @@ const ALL_LIMBS: int = 60
 ## Метрики, на которые опираются хитбоксы (допуск 3 см).
 const BODY_HEIGHT: float = 1.8
 const METRIC_TOLERANCE: float = 0.03
+const HEAD_CENTER_HEIGHT: float = 1.62
+const SHOULDER: Vector2 = Vector2(0.3, 1.42)
+const HIP: Vector2 = Vector2(0.11, 0.92)
+const FACE_SIZE: float = 0.24
+## Бюджет модели: треугольников на персонажа и поверхностей (вызовов отрисовки) на меш.
+const MAX_TRIANGLES: int = 27000
+const MAX_SURFACES: int = 12
+const MATERIAL_DIR: String = "res://resources/materials/characters/"
+## Сколько кадров даём позе прицеливания, чтобы она установилась.
+const AIM_SETTLE_FRAMES: int = 90
+const AIM_TOLERANCE: float = 0.06
+## Кулак второй руки лежит вплотную к кулаку с пистолетом.
+const SUPPORT_MAX_DISTANCE: float = 0.09
 const FRAME_SEC: float = 1.0 / 60.0
 ## Сколько кадров анимации прогоняется вручную в каждом состоянии.
 const FRAMES_PER_STATE: int = 12
@@ -44,6 +58,11 @@ func test_scene_has_expected_nodes() -> void:
 	for mesh_name: String in names:
 		var mesh: MeshInstance3D = visuals.get_node_or_null(SKELETON_PATH.path_join(mesh_name)) as MeshInstance3D
 		assert_true(mesh != null and mesh.mesh != null, "меш %s" % mesh_name)
+	# У рук есть формы кисти: кулак вокруг рукояти и хват пистолета.
+	for arm_name: String in ["ArmLeft", "ArmRight"]:
+		var arm: MeshInstance3D = visuals.get_node(SKELETON_PATH.path_join(arm_name)) as MeshInstance3D
+		for shape: StringName in [PlayerVisuals.HAND_GRIP_SHAPE, PlayerVisuals.HAND_TRIGGER_SHAPE]:
+			assert_true(arm.find_blend_shape_by_name(shape) != -1, "форма %s у %s" % [shape, arm_name])
 	visuals.free()
 
 
@@ -68,8 +87,42 @@ func test_model_keeps_hitbox_metrics() -> void:
 	assert_true(absf(bounds.end.y - BODY_HEIGHT) < METRIC_TOLERANCE, "рост 1.80 м: %s" % bounds.end.y)
 	var face: MeshInstance3D = visuals.get_node(SKELETON_PATH.path_join("FacePlate")) as MeshInstance3D
 	assert_eq(face.mesh.surface_get_material(0).resource_name, "FacePlate", "материал лицевой пластины")
-	# Перёд модели — -Z: лицевая пластина выступает вперёд.
-	assert_true(face.mesh.get_aabb().get_center().z < 0.0, "лицо смотрит в -Z")
+	# Перёд модели — -Z: лицевая пластина стоит перед осью шлема. На неё ляжет фото 0.24 x 0.24 м.
+	var face_bounds: AABB = face.mesh.get_aabb()
+	assert_true(face_bounds.get_center().z < 0.0, "лицо смотрит в -Z")
+	assert_true(absf(face_bounds.size.x - FACE_SIZE) < 0.005 and absf(face_bounds.size.y - FACE_SIZE) < 0.005,
+			"лицевая пластина 0.24 x 0.24: %s" % face_bounds.size)
+	var head: AABB = (visuals.get_node(SKELETON_PATH.path_join("HeadPiece")) as MeshInstance3D).mesh.get_aabb()
+	assert_true(absf(head.get_center().y - HEAD_CENTER_HEIGHT) < METRIC_TOLERANCE, "центр шлема: %s" % head.get_center().y)
+	var skeleton: Skeleton3D = visuals.get_node(SKELETON_PATH) as Skeleton3D
+	for side: float in [-1.0, 1.0]:
+		var prefix: String = "Left" if side < 0.0 else "Right"
+		var shoulder: Vector3 = skeleton.get_bone_global_rest(skeleton.find_bone(prefix + "UpperArm")).origin
+		assert_true(Vector2(shoulder.x, shoulder.y).distance_to(Vector2(SHOULDER.x * side, SHOULDER.y)) < METRIC_TOLERANCE,
+				"плечо %s: %s" % [prefix, shoulder])
+		var hip: Vector3 = skeleton.get_bone_global_rest(skeleton.find_bone(prefix + "UpperLeg")).origin
+		assert_true(Vector2(hip.x, hip.y).distance_to(Vector2(HIP.x * side, HIP.y)) < METRIC_TOLERANCE,
+				"бедро %s: %s" % [prefix, hip])
+	visuals.free()
+
+
+## Материалы модели приходят из общей библиотеки (подмена по имени при импорте), а не из .glb;
+## костюм текстурирован и остаётся одним материалом, который красится под игрока.
+func test_model_uses_material_library() -> void:
+	var visuals: PlayerVisuals = _new_visuals()
+	var triangles: int = 0
+	for node: Node in visuals.get_node("Model").find_children("*", "MeshInstance3D", true, false):
+		var mesh: Mesh = (node as MeshInstance3D).mesh
+		assert_true(mesh.get_surface_count() <= MAX_SURFACES, "поверхностей в %s: %d" % [node.name, mesh.get_surface_count()])
+		for surface: int in mesh.get_surface_count():
+			var material: Material = mesh.surface_get_material(surface)
+			assert_true(material != null and material.resource_path.begins_with(MATERIAL_DIR),
+					"материал %s/%d из библиотеки: %s" % [node.name, surface, material.resource_path if material != null else "нет"])
+			triangles += int(mesh.surface_get_array_index_len(surface) / 3.0)
+	assert_true(triangles > 0 and triangles <= MAX_TRIANGLES, "треугольников в модели: %d" % triangles)
+	var suit: StandardMaterial3D = PlayerVisuals.make_suit_material(visuals.get_node("Model"))
+	assert_eq(suit.resource_name, PlayerVisuals.SUIT_MATERIAL_NAME, "копия материала костюма")
+	assert_true(suit.albedo_texture != null and suit.normal_texture != null, "костюм с текстурами")
 	visuals.free()
 
 
@@ -122,17 +175,94 @@ func test_held_item_follows_free_hand() -> void:
 	visuals.free()
 
 
+## Нож лежит в кулаке иначе, чем пистолет: клинок выходит со стороны большого пальца.
+func test_melee_item_is_turned_in_grip() -> void:
+	var visuals: PlayerVisuals = _new_visuals()
+	visuals.set_held_item(PISTOL_SCENE)
+	var grip: Node = visuals.get_node(RIGHT_GRIP_PATH)
+	assert_true((grip.get_child(0) as Node3D).basis.is_equal_approx(Basis.IDENTITY), "пистолет лежит по осям ладони")
+	visuals.set_held_item(KNIFE_SCENE)
+	var blade: Vector3 = (grip.get_child(0) as Node3D).basis * Vector3.FORWARD
+	assert_true(blade.is_equal_approx(Vector3.UP), "клинок идёт вдоль кулака: %s" % blade)
+	visuals.free()
+
+
+## Пистолет держат двумя руками, и ствол смотрит туда же, куда игрок, — на бегу тоже.
+func test_aim_follows_look_pitch() -> void:
+	var visuals: PlayerVisuals = await _new_visuals_in_tree()
+	var skeleton: Skeleton3D = visuals.get_node(SKELETON_PATH) as Skeleton3D
+	visuals.set_held_item(PISTOL_SCENE)
+	for velocity: Vector3 in [Vector3.ZERO, Vector3(0.0, 0.0, -5.0)]:
+		for pitch: float in [0.0, 0.5, -0.6]:
+			visuals.set_velocity(velocity)
+			visuals.set_look_pitch(pitch)
+			for frame: int in AIM_SETTLE_FRAMES:
+				visuals._process(FRAME_SEC)
+			var right: Transform3D = _grip_in_model(visuals, skeleton, RIGHT_GRIP_PATH, "RightHand")
+			var left: Transform3D = _grip_in_model(visuals, skeleton, LEFT_GRIP_PATH, "LeftHand")
+			var barrel: Vector3 = right.basis * Vector3.FORWARD
+			var expected: Vector3 = Vector3(0.0, sin(pitch), -cos(pitch))
+			assert_true(barrel.distance_to(expected) < AIM_TOLERANCE, "ствол по взгляду %.1f: %s" % [pitch, barrel])
+			assert_true(right.origin.z < -0.25, "пистолет вынесен вперёд: %s" % right.origin)
+			assert_true(left.origin.distance_to(right.origin) < SUPPORT_MAX_DISTANCE,
+					"вторая рука на пистолете: %s" % left.origin.distance_to(right.origin))
+	# Кисти сжаты по делу: указательный палец на спуске, вторая рука обнимает первую.
+	assert_true(_hand_shape(visuals, "ArmRight", PlayerVisuals.HAND_TRIGGER_SHAPE) > 0.95, "палец на спуске")
+	assert_true(_hand_shape(visuals, "ArmRight", PlayerVisuals.HAND_GRIP_SHAPE) < 0.05, "правая кисть не в кулаке")
+	assert_true(_hand_shape(visuals, "ArmLeft", PlayerVisuals.HAND_GRIP_SHAPE) > 0.95, "вторая кисть обхватывает")
+	visuals.set_held_item(KNIFE_SCENE)
+	for frame: int in AIM_SETTLE_FRAMES:
+		visuals._process(FRAME_SEC)
+	assert_true(_hand_shape(visuals, "ArmRight", PlayerVisuals.HAND_GRIP_SHAPE) > 0.95, "нож в кулаке")
+	assert_true(_hand_shape(visuals, "ArmLeft", PlayerVisuals.HAND_GRIP_SHAPE) < 0.05, "свободная кисть расслаблена")
+	visuals.set_held_item(PISTOL_SCENE)
+	# Без второй руки пистолет держат одной: оставшаяся по-прежнему целится.
+	visuals.set_limbs_lost(BodyPart.bit(BodyPart.Part.LEFT_ARM), false)
+	visuals.set_look_pitch(0.0)
+	for frame: int in AIM_SETTLE_FRAMES:
+		visuals._process(FRAME_SEC)
+	var alone: Vector3 = _grip_in_model(visuals, skeleton, RIGHT_GRIP_PATH, "RightHand").basis * Vector3.FORWARD
+	assert_true(alone.distance_to(Vector3.FORWARD) < AIM_TOLERANCE, "ствол вперёд одной рукой: %s" % alone)
+	_free_from_tree(visuals)
+
+
+## Искры из разъёма — отдельная сцена: загружается и удаляется без окна (без него её никто не запускает).
+func test_limb_burst_scene() -> void:
+	var burst: LimbBurst = BURST_SCENE.instantiate() as LimbBurst
+	assert_true(burst != null, "сцена вспышки")
+	for path: String in ["Sparks", "Bits", "Vapor"]:
+		var particles: GPUParticles3D = burst.get_node_or_null(path) as GPUParticles3D
+		assert_true(particles != null and not particles.emitting and particles.one_shot, "частицы %s разовые" % path)
+	# Искры ярче единицы: только так их подхватывает свечение кадра.
+	var sparks: GPUParticles3D = burst.get_node("Sparks") as GPUParticles3D
+	var spark_material: StandardMaterial3D = (sparks.draw_pass_1 as PrimitiveMesh).material as StandardMaterial3D
+	assert_true(spark_material != null and spark_material.albedo_color.r > 2.0, "искры светятся в HDR")
+	assert_true(burst.get_node_or_null("Floor") is GPUParticlesCollisionBox3D, "пол для искр")
+	burst.free()
+
+
 func test_body_color_is_per_instance() -> void:
 	var first: PlayerVisuals = _new_visuals()
 	var second: PlayerVisuals = _new_visuals()
 	first.set_body_color(Color.RED)
 	second.set_body_color(Color.BLUE)
-	assert_eq(_suit_color(first), Color.RED, "цвет первого")
-	assert_eq(_suit_color(second), Color.BLUE, "цвет второго")
+	# Краска костюма — цвет игрока, приглушённый под освещение сцены (PlayerVisuals.suit_paint_color).
+	assert_eq(_suit_color(first), PlayerVisuals.suit_paint_color(Color.RED), "цвет первого")
+	assert_eq(_suit_color(second), PlayerVisuals.suit_paint_color(Color.BLUE), "цвет второго")
+	var paints: Array[Color] = []
 	for slot: int in PlayerPalette.COLORS.size():
-		first.set_body_color(PlayerPalette.color(slot))
-		assert_eq(_suit_color(first), PlayerPalette.color(slot), "цвет игрока %d" % slot)
-	assert_eq(_suit_color(second), Color.BLUE, "чужая перекраска не задела")
+		var color: Color = PlayerPalette.color(slot)
+		first.set_body_color(color)
+		var paint: Color = _suit_color(first)
+		assert_eq(paint, PlayerVisuals.suit_paint_color(color), "цвет игрока %d" % slot)
+		# Краска темнее цвета интерфейса, но оттенок тот же: игрока узнают по цвету.
+		assert_true(paint.v < color.v and paint.v > 0.5, "краска %d темнее цвета игрока: %s" % [slot, paint.v])
+		assert_true(absf(angle_difference(paint.h * TAU, color.h * TAU)) < 0.12, "оттенок краски %d" % slot)
+		for other: Color in paints:
+			var gap: Vector3 = Vector3(paint.r - other.r, paint.g - other.g, paint.b - other.b)
+			assert_true(gap.length() > 0.15, "краски игроков различимы: %d" % slot)
+		paints.append(paint)
+	assert_eq(_suit_color(second), PlayerVisuals.suit_paint_color(Color.BLUE), "чужая перекраска не задела")
 	first.free()
 	second.free()
 
@@ -197,6 +327,14 @@ func test_viewmodel_api() -> void:
 	var right: MeshInstance3D = viewmodel.get_node_or_null("Rig/Arms/ArmRight") as MeshInstance3D
 	var left: MeshInstance3D = viewmodel.get_node_or_null("Rig/Arms/ArmLeft") as MeshInstance3D
 	assert_true(right != null and left != null, "меши рук")
+	# Рука — три звена: кисть, предплечье, плечо.
+	var links: Dictionary[MeshInstance3D, Array] = {right: [], left: []}
+	for link_name: String in ["Forearm", "Upper"]:
+		for hand: MeshInstance3D in [right, left]:
+			var link: MeshInstance3D = viewmodel.get_node_or_null(
+					"Rig/Arms/%s%s" % [link_name, "Right" if hand == right else "Left"]) as MeshInstance3D
+			assert_true(link != null and link.mesh != null, "звено %s" % link_name)
+			links[hand].append(link)
 	viewmodel.set_body_color(PlayerPalette.color(3))
 	viewmodel.set_held_item(null)
 	viewmodel.play_attack()
@@ -218,6 +356,11 @@ func test_viewmodel_api() -> void:
 			viewmodel._process(FRAME_SEC)
 		for arm: MeshInstance3D in [right, left]:
 			assert_true(arm.position.is_finite() and arm.rotation.is_finite(), "рука на месте: маска %d" % mask)
+			for link: MeshInstance3D in links[arm]:
+				assert_true(link.transform.is_finite(), "звено руки на месте: маска %d" % mask)
+				assert_eq(link.visible, arm.visible, "звено скрыто вместе с кистью: маска %d" % mask)
+				assert_true(link.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+						and link.layers == Viewmodel.VIEW_RENDER_LAYER, "руки без теней и на своём слое")
 		var arms_lost: int = BodyPart.lost_arms(mask)
 		var expected: int = 1 if mask % 3 != 2 and arms_lost < 2 else 0
 		assert_eq(right.get_child_count() + left.get_child_count(), expected, "предметов в руках: маска %d" % mask)
@@ -237,6 +380,11 @@ func test_weapon_models() -> void:
 		assert_true(bounds.grow(0.001).has_point(Vector3.ZERO), "хват внутри модели %s" % item.name)
 		assert_true(-bounds.position.z > bounds.end.z, "%s смотрит в -Z" % item.name)
 		assert_true(bounds.size.z > 0.2 and bounds.size.z < 0.4, "длина %s: %s" % [item.name, bounds.size.z])
+		for node: Node in item.find_children("*", "MeshInstance3D", true, false):
+			var mesh: Mesh = (node as MeshInstance3D).mesh
+			for surface: int in mesh.get_surface_count():
+				assert_true(mesh.surface_get_material(surface).resource_path.begins_with(MATERIAL_DIR),
+						"материал %s/%d из библиотеки" % [item.name, surface])
 		assert_eq(PlayerVisuals.is_melee_item(item), scene == KNIFE_SCENE, "ближний бой: %s" % item.name)
 		item.free()
 
@@ -262,6 +410,19 @@ func _add_to_tree(node: Node) -> void:
 func _free_from_tree(node: Node) -> void:
 	node.get_parent().remove_child(node)
 	node.free()
+
+
+## Положение ладони в осях модели (узел-вложение обновляется только в дереве с кадрами,
+## поэтому считаем от позы кости).
+func _grip_in_model(visuals: PlayerVisuals, skeleton: Skeleton3D, grip_path: String, bone: String) -> Transform3D:
+	var grip: Node3D = visuals.get_node(grip_path) as Node3D
+	return skeleton.get_bone_global_pose(skeleton.find_bone(bone)) * grip.transform
+
+
+## Вес формы кисти (shape key) у меша руки.
+func _hand_shape(visuals: PlayerVisuals, arm_name: String, shape: StringName) -> float:
+	var arm: MeshInstance3D = visuals.get_node(SKELETON_PATH.path_join(arm_name)) as MeshInstance3D
+	return arm.get_blend_shape_value(arm.find_blend_shape_by_name(shape))
 
 
 func _suit_color(visuals: PlayerVisuals) -> Color:

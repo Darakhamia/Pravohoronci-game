@@ -1,0 +1,9 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[resource]
+resource_name = "Visor"
+transparency = 1
+albedo_color = Color(0.16, 0.125, 0.075, 0.8)
+metallic = 0.55
+metallic_specular = 1
+roughness = 0.04

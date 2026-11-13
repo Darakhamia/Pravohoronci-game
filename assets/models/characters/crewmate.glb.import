@@ -39,7 +39,95 @@ import_script/path=""
 materials/extract=0
 materials/extract_format=0
 materials/extract_path=""
-_subresources={}
+_subresources={
+"materials": {
+"FacePlate": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/face_plate.tres",
+"use_external/path": "res://resources/materials/characters/face_plate.tres"
+},
+"Suit": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit.tres",
+"use_external/path": "res://resources/materials/characters/suit.tres"
+},
+"SuitAlert": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_alert.tres",
+"use_external/path": "res://resources/materials/characters/suit_alert.tres"
+},
+"SuitBoot": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_boot.tres",
+"use_external/path": "res://resources/materials/characters/suit_boot.tres"
+},
+"SuitChips": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_chips.tres",
+"use_external/path": "res://resources/materials/characters/suit_chips.tres"
+},
+"SuitDecal": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_decal.tres",
+"use_external/path": "res://resources/materials/characters/suit_decal.tres"
+},
+"SuitFabric": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_fabric.tres",
+"use_external/path": "res://resources/materials/characters/suit_fabric.tres"
+},
+"SuitGlove": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_glove.tres",
+"use_external/path": "res://resources/materials/characters/suit_glove.tres"
+},
+"SuitGlow": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_glow.tres",
+"use_external/path": "res://resources/materials/characters/suit_glow.tres"
+},
+"SuitLamp": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_lamp.tres",
+"use_external/path": "res://resources/materials/characters/suit_lamp.tres"
+},
+"SuitMetal": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_metal.tres",
+"use_external/path": "res://resources/materials/characters/suit_metal.tres"
+},
+"SuitMetalDark": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_metal_dark.tres",
+"use_external/path": "res://resources/materials/characters/suit_metal_dark.tres"
+},
+"SuitRed": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_red.tres",
+"use_external/path": "res://resources/materials/characters/suit_red.tres"
+},
+"SuitRubber": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_rubber.tres",
+"use_external/path": "res://resources/materials/characters/suit_rubber.tres"
+},
+"SuitScreen": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_screen.tres",
+"use_external/path": "res://resources/materials/characters/suit_screen.tres"
+},
+"SuitWhite": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_white.tres",
+"use_external/path": "res://resources/materials/characters/suit_white.tres"
+},
+"Visor": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/visor.tres",
+"use_external/path": "res://resources/materials/characters/visor.tres"
+}
+}
+}
 gltf/naming_version=2
 gltf/embedded_image_handling=1
 gltf/texture_map_mode=1
