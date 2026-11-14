@@ -139,6 +139,32 @@ layout_mode = 2
 placeholder_text = "127.0.0.1:7777"
 context_menu_enabled = false
 
+[node name="GraphicsField" type="VBoxContainer" parent="Page/Margin/Layout/Form"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VBoxFlush"
+
+[node name="GraphicsLabel" type="Label" parent="Page/Margin/Layout/Form/GraphicsField"]
+layout_mode = 2
+theme_type_variation = &"LabelOverline"
+text = "Графика"
+uppercase = true
+
+[node name="GraphicsButton" type="Button" parent="Page/Margin/Layout/Form/GraphicsField"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_default_cursor_shape = 2
+text = "Высокая"
+icon = ExtResource("3_arrow")
+alignment = 0
+icon_alignment = 2
+
+[node name="GraphicsHint" type="Label" parent="Page/Margin/Layout/Form/GraphicsField"]
+layout_mode = 2
+theme_type_variation = &"LabelCaption"
+text = "Игра идёт рывками — снизь уровень. F3 показывает счётчик кадров."
+autowrap_mode = 3
+
 [node name="Actions" type="VBoxContainer" parent="Page/Margin/Layout/Form"]
 layout_mode = 2
 mouse_filter = 2

@@ -1,6 +1,6 @@
 class_name MainMenu
 extends Control
-## Главное меню: имя игрока, адрес сервера, подключение.
+## Главное меню: имя игрока, адрес сервера, уровень графики, подключение.
 ## Саму сессию ведёт Net; об исходе подключения меню узнаёт от Main через show_status().
 ## Пока идёт подключение, главная кнопка сама становится индикатором: «Подключение...»
 ## и вращающаяся дуга. Ошибка — строка со значком под кнопками, не длиннее трёх строк.
@@ -18,6 +18,7 @@ const CONNECT_BUSY_STYLE: StringName = &"ButtonBusy"
 
 @onready var _name_edit: LineEdit = %NameEdit
 @onready var _address_edit: LineEdit = %AddressEdit
+@onready var _graphics_button: Button = %GraphicsButton
 @onready var _connect_button: Button = %ConnectButton
 @onready var _quit_button: Button = %QuitButton
 @onready var _spinner: Control = %Spinner
@@ -37,6 +38,8 @@ func _ready() -> void:
 	_address_edit.text_submitted.connect(_connect_to_server.unbind(1))
 	_connect_button.pressed.connect(_connect_to_server)
 	_quit_button.pressed.connect(_on_quit_pressed)
+	_graphics_button.pressed.connect(_on_graphics_pressed)
+	_show_graphics_quality()
 	visibility_changed.connect(_on_visibility_changed)
 
 
@@ -100,6 +103,17 @@ func _set_form_enabled(enabled: bool) -> void:
 func _on_visibility_changed() -> void:
 	if is_visible_in_tree():
 		UiMotion.fade_in(_page)
+
+
+## Кнопка перебирает уровни по кругу; выбор применяется сразу и запоминается.
+func _on_graphics_pressed() -> void:
+	Settings.graphics_quality = GraphicsPresets.next(Settings.graphics_quality)
+	Settings.save()
+	_show_graphics_quality()
+
+
+func _show_graphics_quality() -> void:
+	_graphics_button.text = GraphicsPresets.quality_name(Settings.graphics_quality)
 
 
 func _on_quit_pressed() -> void:

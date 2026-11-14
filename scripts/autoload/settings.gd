@@ -3,7 +3,8 @@ extends Node
 ## Сервер и запуски без окна (боты, тесты) файл не читают и не пишут: им личные настройки
 ## не нужны, а тесты не должны зависеть от того, что лежит на машине разработчика.
 
-## Для будущего экрана настроек: сейчас значения читаются один раз, сигнал никто не слушает.
+## Значение изменилось: key — имя свойства. Слушают те, кто применяет настройку на ходу
+## (качество картинки, счётчик кадров).
 signal changed(key: StringName)
 
 const FILE_PATH: String = "user://settings.cfg"
@@ -53,12 +54,27 @@ var master_volume: float = DEFAULT_MASTER_VOLUME:
 		_apply_master_volume()
 		changed.emit(&"master_volume")
 
+## Уровень качества картинки. Применяет его GraphicsApplier.
+var graphics_quality: GraphicsPresets.Quality = GraphicsPresets.DEFAULT_QUALITY:
+	set(value):
+		graphics_quality = GraphicsPresets.sanitize(value)
+		changed.emit(&"graphics_quality")
+
+## Показывать ли счётчик кадров (клавиша F3, см. FpsCounter).
+var show_fps: bool = false:
+	set(value):
+		show_fps = value
+		changed.emit(&"show_fps")
+
 
 func _ready() -> void:
 	if not _uses_file():
 		return
 	_load()
 	_apply_master_volume()
+	# Помощники клиента с окном: живут рядом с настройками, которые применяют.
+	add_child(GraphicsApplier.new())
+	add_child(FpsCounter.new())
 
 
 func save() -> void:
@@ -70,6 +86,8 @@ func save() -> void:
 	config.set_value(SECTION, "mouse_sensitivity", mouse_sensitivity)
 	config.set_value(SECTION, "fov", fov)
 	config.set_value(SECTION, "master_volume", master_volume)
+	config.set_value(SECTION, "graphics_quality", graphics_quality as int)
+	config.set_value(SECTION, "show_fps", show_fps)
 	var error: Error = config.save(FILE_PATH)
 	if error != OK:
 		push_warning("Не удалось сохранить настройки: %s" % error_string(error))
@@ -90,6 +108,8 @@ func _load() -> void:
 	mouse_sensitivity = _read_float(config, "mouse_sensitivity", mouse_sensitivity)
 	fov = _read_float(config, "fov", fov)
 	master_volume = _read_float(config, "master_volume", master_volume)
+	graphics_quality = GraphicsPresets.sanitize(_read_int(config, "graphics_quality", graphics_quality))
+	show_fps = _read_bool(config, "show_fps", show_fps)
 
 
 static func _uses_file() -> bool:
@@ -109,6 +129,16 @@ static func _read_string(config: ConfigFile, key: String, fallback: String) -> S
 static func _read_float(config: ConfigFile, key: String, fallback: float) -> float:
 	var value: Variant = config.get_value(SECTION, key, fallback)
 	return value as float if value is float or value is int else fallback
+
+
+static func _read_int(config: ConfigFile, key: String, fallback: int) -> int:
+	var value: Variant = config.get_value(SECTION, key, fallback)
+	return value as int if value is int else fallback
+
+
+static func _read_bool(config: ConfigFile, key: String, fallback: bool) -> bool:
+	var value: Variant = config.get_value(SECTION, key, fallback)
+	return value as bool if value is bool else fallback
 
 
 static func _sane(value: float, fallback: float, min_value: float, max_value: float) -> float:
