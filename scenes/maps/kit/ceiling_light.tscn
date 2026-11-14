@@ -1,0 +1,27 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://assets/models/kit/ceiling_light.glb" id="1_model"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_1"]
+size = Vector3(4, 0.2, 4)
+
+[node name="CeilingLight" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+
+[node name="Collision" type="StaticBody3D" parent="."]
+
+[node name="Shape1" type="CollisionShape3D" parent="Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.3, 0)
+shape = SubResource("BoxShape3D_1")
+
+[node name="Light" type="SpotLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 3.02, 0)
+light_color = Color(1, 0.93, 0.82, 1)
+light_energy = 12.0
+light_specular = 0.5
+light_volumetric_fog_energy = 1.0
+spot_range = 5.5
+spot_attenuation = 2.0
+spot_angle = 33.0
+spot_angle_attenuation = 1.3

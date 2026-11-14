@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+[node name="AccentStripCool" type="OmniLight3D"]
+light_color = Color(0.55, 0.86, 1, 1)
+light_energy = 1.4
+light_specular = 0.5
+light_volumetric_fog_energy = 0.6
+omni_range = 3.2
+omni_attenuation = 1.6

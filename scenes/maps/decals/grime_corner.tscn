@@ -1,0 +1,15 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://assets/textures/decals/grime_corner_albedo.png" id="1_albedo"]
+[ext_resource type="Texture2D" path="res://assets/textures/decals/grime_corner_orm.png" id="2_orm"]
+
+[node name="GrimeCorner" type="Decal"]
+size = Vector3(2, 0.16, 0.5)
+texture_albedo = ExtResource("1_albedo")
+texture_orm = ExtResource("2_orm")
+normal_fade = 0.5
+upper_fade = 0.01
+lower_fade = 0.01
+distance_fade_enabled = true
+distance_fade_begin = 28.0
+distance_fade_length = 6.0

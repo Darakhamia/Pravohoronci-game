@@ -1,0 +1,22 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/interaction/weapon_pickup.gd" id="1_pickup"]
+[ext_resource type="PackedScene" path="res://assets/models/props/weapon_pedestal.glb" id="2_pedestal"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_stand"]
+size = Vector3(0.92, 0.9, 0.44)
+
+[node name="WeaponPickup" type="Node3D"]
+script = ExtResource("1_pickup")
+focus_offset = Vector3(0, 1, 0)
+
+[node name="Pedestal" parent="." instance=ExtResource("2_pedestal")]
+
+[node name="WeaponSlot" type="Node3D" parent="."]
+transform = Transform3D(0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0.9, 0)
+
+[node name="StandBody" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StandBody"]
+shape = SubResource("BoxShape3D_stand")

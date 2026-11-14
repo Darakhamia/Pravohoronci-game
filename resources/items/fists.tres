@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="WeaponConfig" format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/items/weapon_config.gd" id="1_weapon"]
+
+[resource]
+script = ExtResource("1_weapon")
+title = "Кулаки"
+kind = 0
+damage = 8
+attack_range = 1.6
+attack_interval = 0.6
+draw_seconds = 0.15
+hit_radius = 0.15

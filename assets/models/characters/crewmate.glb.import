@@ -1,0 +1,133 @@
+[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+uid="uid://by1u0bfev347c"
+path="res://.godot/imported/crewmate.glb-67c3e8e2aad64f7444635532f8eb5176.scn"
+
+[deps]
+
+source_file="res://assets/models/characters/crewmate.glb"
+dest_files=["res://.godot/imported/crewmate.glb-67c3e8e2aad64f7444635532f8eb5176.scn"]
+
+[params]
+
+nodes/root_type=""
+nodes/root_name=""
+nodes/root_script=null
+mesh_library/use_node_names_as_mesh_names=false
+array_mesh/deduplicate_surfaces=true
+nodes/apply_root_scale=true
+nodes/root_scale=1.0
+nodes/import_as_skeleton_bones=false
+nodes/use_name_suffixes=true
+nodes/use_node_type_suffixes=true
+meshes/ensure_tangents=true
+meshes/generate_lods=true
+meshes/create_shadow_meshes=true
+meshes/light_baking=1
+meshes/lightmap_texel_size=0.2
+meshes/force_disable_compression=false
+skins/use_named_skins=true
+animation/import=true
+animation/fps=30
+animation/trimming=false
+animation/remove_immutable_tracks=true
+animation/import_rest_as_RESET=false
+import_script/path=""
+materials/extract=0
+materials/extract_format=0
+materials/extract_path=""
+_subresources={
+"materials": {
+"FacePlate": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/face_plate.tres",
+"use_external/path": "res://resources/materials/characters/face_plate.tres"
+},
+"Suit": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit.tres",
+"use_external/path": "res://resources/materials/characters/suit.tres"
+},
+"SuitAlert": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_alert.tres",
+"use_external/path": "res://resources/materials/characters/suit_alert.tres"
+},
+"SuitBoot": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_boot.tres",
+"use_external/path": "res://resources/materials/characters/suit_boot.tres"
+},
+"SuitChips": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_chips.tres",
+"use_external/path": "res://resources/materials/characters/suit_chips.tres"
+},
+"SuitDecal": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_decal.tres",
+"use_external/path": "res://resources/materials/characters/suit_decal.tres"
+},
+"SuitFabric": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_fabric.tres",
+"use_external/path": "res://resources/materials/characters/suit_fabric.tres"
+},
+"SuitGlove": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_glove.tres",
+"use_external/path": "res://resources/materials/characters/suit_glove.tres"
+},
+"SuitGlow": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_glow.tres",
+"use_external/path": "res://resources/materials/characters/suit_glow.tres"
+},
+"SuitLamp": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_lamp.tres",
+"use_external/path": "res://resources/materials/characters/suit_lamp.tres"
+},
+"SuitMetal": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_metal.tres",
+"use_external/path": "res://resources/materials/characters/suit_metal.tres"
+},
+"SuitMetalDark": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_metal_dark.tres",
+"use_external/path": "res://resources/materials/characters/suit_metal_dark.tres"
+},
+"SuitRed": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_red.tres",
+"use_external/path": "res://resources/materials/characters/suit_red.tres"
+},
+"SuitRubber": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_rubber.tres",
+"use_external/path": "res://resources/materials/characters/suit_rubber.tres"
+},
+"SuitScreen": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_screen.tres",
+"use_external/path": "res://resources/materials/characters/suit_screen.tres"
+},
+"SuitWhite": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/suit_white.tres",
+"use_external/path": "res://resources/materials/characters/suit_white.tres"
+},
+"Visor": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/characters/visor.tres",
+"use_external/path": "res://resources/materials/characters/visor.tres"
+}
+}
+}
+gltf/naming_version=2
+gltf/embedded_image_handling=1
+gltf/texture_map_mode=1

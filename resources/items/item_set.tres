@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemSet" format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/items/item_set.gd" id="1_set"]
+[ext_resource type="Script" path="res://scripts/gameplay/items/item_config.gd" id="6_item"]
+[ext_resource type="Resource" path="res://resources/items/fists.tres" id="2_fists"]
+[ext_resource type="Resource" path="res://resources/items/pistol.tres" id="3_pistol"]
+[ext_resource type="Resource" path="res://resources/items/knife.tres" id="4_knife"]
+[ext_resource type="Resource" path="res://resources/items/canister.tres" id="5_canister"]
+
+[resource]
+script = ExtResource("1_set")
+items = Array[ExtResource("6_item")]([ExtResource("2_fists"), ExtResource("3_pistol"), ExtResource("4_knife"), ExtResource("5_canister")])

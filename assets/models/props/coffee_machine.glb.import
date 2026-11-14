@@ -1,0 +1,118 @@
+[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+uid="uid://hggxl4vbjq0m"
+path="res://.godot/imported/coffee_machine.glb-f510ce383d41b7b69c51585ae73b3454.scn"
+
+[deps]
+
+source_file="res://assets/models/props/coffee_machine.glb"
+dest_files=["res://.godot/imported/coffee_machine.glb-f510ce383d41b7b69c51585ae73b3454.scn"]
+
+[params]
+
+nodes/root_type=""
+nodes/root_name=""
+nodes/root_script=null
+mesh_library/use_node_names_as_mesh_names=false
+array_mesh/deduplicate_surfaces=true
+nodes/apply_root_scale=true
+nodes/root_scale=1.0
+nodes/import_as_skeleton_bones=false
+nodes/use_name_suffixes=true
+nodes/use_node_type_suffixes=true
+meshes/ensure_tangents=true
+meshes/generate_lods=true
+meshes/create_shadow_meshes=true
+meshes/light_baking=1
+meshes/lightmap_texel_size=0.2
+meshes/force_disable_compression=false
+skins/use_named_skins=true
+animation/import=true
+animation/fps=30
+animation/trimming=false
+animation/remove_immutable_tracks=true
+animation/import_rest_as_RESET=false
+import_script/path=""
+materials/extract=0
+materials/extract_format=0
+materials/extract_path=""
+_subresources={
+"materials": {
+"env_chrome": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_chrome.tres",
+"use_external/path": "res://resources/materials/env_chrome.tres"
+},
+"env_cyan": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_cyan.tres",
+"use_external/path": "res://resources/materials/env_cyan.tres"
+},
+"env_glow_green": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_glow_green.tres",
+"use_external/path": "res://resources/materials/env_glow_green.tres"
+},
+"env_grey": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_grey.tres",
+"use_external/path": "res://resources/materials/env_grey.tres"
+},
+"env_laminate": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_laminate.tres",
+"use_external/path": "res://resources/materials/env_laminate.tres"
+},
+"env_line": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_line.tres",
+"use_external/path": "res://resources/materials/env_line.tres"
+},
+"env_mid": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_mid.tres",
+"use_external/path": "res://resources/materials/env_mid.tres"
+},
+"env_red": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_red.tres",
+"use_external/path": "res://resources/materials/env_red.tres"
+},
+"env_rubber": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_rubber.tres",
+"use_external/path": "res://resources/materials/env_rubber.tres"
+},
+"env_screen": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_screen.tres",
+"use_external/path": "res://resources/materials/env_screen.tres"
+},
+"env_violet": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_violet.tres",
+"use_external/path": "res://resources/materials/env_violet.tres"
+},
+"env_white": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_white.tres",
+"use_external/path": "res://resources/materials/env_white.tres"
+},
+"env_wood": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_wood.tres",
+"use_external/path": "res://resources/materials/env_wood.tres"
+},
+"env_yellow": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_yellow.tres",
+"use_external/path": "res://resources/materials/env_yellow.tres"
+}
+}
+}
+gltf/naming_version=2
+gltf/embedded_image_handling=1
+gltf/texture_map_mode=1

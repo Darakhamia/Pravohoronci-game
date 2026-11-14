@@ -1,0 +1,22 @@
+# Кэш Godot 4: импортированные ресурсы, кэш классов и UID. Восстанавливается командой `godot --headless --import`.
+.godot/
+
+# Сборки и экспорт
+/builds/
+/android/
+
+# Логи тестов
+/tests/.logs/
+
+# Мусор ОС и редакторов
+.DS_Store
+Thumbs.db
+*.tmp
+*~
+
+# Скриншоты предпросмотра (tests/visual с флагом --shots)
+/out/
+
+# Кэш Python от генераторов моделей (tools/assets)
+__pycache__/
+*.pyc

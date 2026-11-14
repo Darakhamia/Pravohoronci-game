@@ -1,0 +1,17 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://tests/visual/kit_preview.tscn" id="1_station"]
+[ext_resource type="PackedScene" path="res://scenes/characters/player_visuals.tscn" id="2_crewmate"]
+
+[node name="HudBackdrop" type="Node3D"]
+
+[node name="Station" parent="." instance=ExtResource("1_station")]
+script = null
+
+[node name="Camera" type="Camera3D" parent="."]
+transform = Transform3D(-0.4392, 0.0537, -0.8968, 0, 0.9982, 0.0598, 0.8984, 0.0263, -0.4384, 14.5, 1.6, 0.2)
+current = true
+fov = 75.0
+
+[node name="Crewmate" parent="." instance=ExtResource("2_crewmate")]
+transform = Transform3D(0.44, 0, 0.898, 0, 1, 0, -0.898, 0, 0.44, 17.45, 0, 0.53)

@@ -1,0 +1,180 @@
+[gd_scene format=3]
+
+[ext_resource type="Theme" path="res://resources/ui/theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://scripts/ui/meeting_screen.gd" id="2_meeting"]
+
+[node name="MeetingScreen" type="Control"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_theme")
+script = ExtResource("2_meeting")
+
+[node name="Background" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"PanelScreen"
+
+[node name="Page" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 13
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -960.0
+offset_right = 960.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Margin" type="MarginContainer" parent="Page"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"MarginPage"
+
+[node name="Layout" type="VBoxContainer" parent="Page/Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VBoxRoomy"
+
+[node name="Masthead" type="VBoxContainer" parent="Page/Margin/Layout"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Heading" type="VBoxContainer" parent="Page/Margin/Layout/Masthead"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VBoxTight"
+
+[node name="Stage" type="Label" parent="Page/Margin/Layout/Masthead/Heading"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"LabelOverlineBright"
+text = "Обсуждение"
+uppercase = true
+
+[node name="Head" type="VBoxContainer" parent="Page/Margin/Layout/Masthead/Heading"]
+custom_minimum_size = Vector2(0, 184)
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VBoxFlush"
+
+[node name="Title" type="Label" parent="Page/Margin/Layout/Masthead/Heading/Head"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"LabelDisplay"
+text = "Собрание"
+text_overrun_behavior = 3
+
+[node name="Deck" type="Label" parent="Page/Margin/Layout/Masthead/Heading/Head"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_type_variation = &"LabelDim"
+vertical_alignment = 1
+autowrap_mode = 3
+max_lines_visible = 2
+text_overrun_behavior = 3
+
+[node name="Rule" type="HSeparator" parent="Page/Margin/Layout/Masthead"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"HSeparatorStrong"
+
+[node name="Body" type="HBoxContainer" parent="Page/Margin/Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+theme_type_variation = &"HBoxFlush"
+
+[node name="Cards" type="GridContainer" parent="Page/Margin/Layout/Body"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(1024, 0)
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+columns = 2
+
+[node name="Gap" type="Control" parent="Page/Margin/Layout/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="Side" type="VBoxContainer" parent="Page/Margin/Layout/Body"]
+custom_minimum_size = Vector2(512, 0)
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"VBoxFlush"
+
+[node name="Timer" type="Label" parent="Page/Margin/Layout/Body/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"LabelNumberAccent"
+text = "0:00"
+
+[node name="TimerCaption" type="Label" parent="Page/Margin/Layout/Body/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"LabelOverline"
+text = "До голосования"
+uppercase = true
+
+[node name="HintGap" type="Control" parent="Page/Margin/Layout/Body/Side"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Hint" type="Label" parent="Page/Margin/Layout/Body/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"LabelLead"
+autowrap_mode = 3
+
+[node name="SkipGap" type="Control" parent="Page/Margin/Layout/Body/Side"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="SkipButton" type="Button" parent="Page/Margin/Layout/Body/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+focus_mode = 0
+text = "Пропустить"
+alignment = 0
+
+[node name="SkipResult" type="VBoxContainer" parent="Page/Margin/Layout/Body/Side"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Rule" type="HSeparator" parent="Page/Margin/Layout/Body/Side/SkipResult"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="SkipCaption" type="Label" parent="Page/Margin/Layout/Body/Side/SkipResult"]
+layout_mode = 2
+theme_type_variation = &"LabelOverline"
+text = "Пропустили"
+uppercase = true
+
+[node name="SkipVoters" type="HBoxContainer" parent="Page/Margin/Layout/Body/Side/SkipResult"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"HBoxMini"

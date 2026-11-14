@@ -1,0 +1,14 @@
+[gd_scene format=3]
+
+[node name="KeyLight" type="OmniLight3D"]
+light_color = Color(1, 0.94, 0.85, 1)
+light_energy = 3.0
+light_specular = 0.5
+light_size = 0.1
+light_volumetric_fog_energy = 0.15
+shadow_enabled = true
+shadow_bias = 0.06
+shadow_normal_bias = 1.5
+shadow_blur = 1.5
+omni_range = 10.0
+omni_attenuation = 0.5

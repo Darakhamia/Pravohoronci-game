@@ -1,0 +1,104 @@
+[gd_scene format=3]
+
+[ext_resource type="Theme" path="res://resources/ui/theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://scripts/ui/meeting_vote_card.gd" id="2_card"]
+[ext_resource type="Script" path="res://scripts/ui/widgets/helmet_avatar.gd" id="3_helmet"]
+
+[node name="MeetingVoteCard" type="Button"]
+custom_minimum_size = Vector2(496, 136)
+size_flags_horizontal = 3
+focus_mode = 0
+theme = ExtResource("1_theme")
+theme_type_variation = &"VoteCard"
+script = ExtResource("2_card")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_right = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Row" type="HBoxContainer" parent="Margin"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Helmet" type="Control" parent="Margin/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(64, 64)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+script = ExtResource("3_helmet")
+
+[node name="Text" type="VBoxContainer" parent="Margin/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+mouse_filter = 2
+theme_type_variation = &"VBoxMini"
+
+[node name="NameRow" type="HBoxContainer" parent="Margin/Row/Text"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"HBoxSnug"
+
+[node name="Name" type="Label" parent="Margin/Row/Text/NameRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"LabelStrong"
+text = "Игрок"
+text_overrun_behavior = 3
+
+[node name="SelfTag" type="Label" parent="Margin/Row/Text/NameRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"LabelTagSolid"
+text = "Ты"
+uppercase = true
+
+[node name="State" type="Label" parent="Margin/Row/Text"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"LabelCaption"
+text = "вне игры"
+
+[node name="Voters" type="HBoxContainer" parent="Margin/Row/Text"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"HBoxMini"
+
+[node name="Count" type="Label" parent="Margin/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"LabelHeadingDim"
+text = "0"
+
+[node name="TagRow" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 16.0
+offset_top = -16.0
+offset_right = -16.0
+offset_bottom = 16.0
+grow_horizontal = 2
+mouse_filter = 2
+alignment = 2
+
+[node name="Tag" type="Label" parent="TagRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"LabelTagAccent"
+text = "Твой голос"
+uppercase = true

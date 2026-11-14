@@ -1,0 +1,247 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://tests/visual/character_preview.gd" id="1_preview"]
+[ext_resource type="Texture2D" path="res://assets/textures/characters/suit_metal_albedo.png" id="2_metal_albedo"]
+[ext_resource type="Texture2D" path="res://assets/textures/characters/suit_metal_normal.png" id="3_metal_normal"]
+[ext_resource type="Texture2D" path="res://assets/textures/characters/suit_paint_normal.png" id="6_paint_normal"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_stage"]
+sky_top_color = Color(0.07, 0.09, 0.14, 1)
+sky_horizon_color = Color(0.2, 0.23, 0.31, 1)
+ground_bottom_color = Color(0.02, 0.022, 0.03, 1)
+ground_horizon_color = Color(0.09, 0.1, 0.14, 1)
+sun_angle_max = 0.0
+
+[sub_resource type="Sky" id="Sky_stage"]
+sky_material = SubResource("ProceduralSkyMaterial_stage")
+
+[sub_resource type="Environment" id="Environment_stage"]
+background_mode = 2
+sky = SubResource("Sky_stage")
+ambient_light_source = 3
+ambient_light_energy = 1.3
+tonemap_mode = 4
+ssr_enabled = true
+ssr_max_steps = 48
+ssao_enabled = true
+ssao_radius = 0.7
+ssao_intensity = 2.6
+ssao_light_affect = 0.45
+ssil_enabled = true
+glow_enabled = true
+glow_intensity = 0.45
+glow_bloom = 0.04
+fog_enabled = true
+fog_light_color = Color(0.1, 0.12, 0.17, 1)
+fog_density = 0.003
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
+albedo_color = Color(0.14, 0.145, 0.16, 1)
+albedo_texture = ExtResource("2_metal_albedo")
+metallic_specular = 0.3
+roughness = 0.66
+normal_enabled = true
+normal_scale = 0.3
+normal_texture = ExtResource("3_metal_normal")
+uv1_scale = Vector3(1.5, 1.5, 1.5)
+uv1_triplanar = true
+uv1_world_triplanar = true
+
+[sub_resource type="BoxMesh" id="BoxMesh_floor"]
+material = SubResource("StandardMaterial3D_floor")
+size = Vector3(40, 0.2, 40)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+size = Vector3(40, 0.2, 40)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wall"]
+albedo_color = Color(0.2, 0.22, 0.27, 1)
+roughness = 0.7
+normal_enabled = true
+normal_scale = 0.35
+normal_texture = ExtResource("6_paint_normal")
+uv1_scale = Vector3(1.3, 1.3, 1.3)
+uv1_triplanar = true
+uv1_world_triplanar = true
+
+[sub_resource type="BoxMesh" id="BoxMesh_wall"]
+material = SubResource("StandardMaterial3D_wall")
+size = Vector3(32, 8, 0.5)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_strip"]
+albedo_color = Color(0.75, 0.93, 1, 1)
+emission_enabled = true
+emission = Color(0.6, 0.86, 1, 1)
+emission_energy_multiplier = 2.2
+
+[sub_resource type="BoxMesh" id="BoxMesh_strip"]
+material = SubResource("StandardMaterial3D_strip")
+size = Vector3(30, 0.1, 0.08)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_softbox"]
+albedo_color = Color(1, 0.97, 0.92, 1)
+emission_enabled = true
+emission = Color(1, 0.95, 0.88, 1)
+emission_energy_multiplier = 3.0
+
+[sub_resource type="BoxMesh" id="BoxMesh_softbox"]
+material = SubResource("StandardMaterial3D_softbox")
+size = Vector3(5, 3, 0.1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_coolbox"]
+albedo_color = Color(0.7, 0.85, 1, 1)
+emission_enabled = true
+emission = Color(0.55, 0.75, 1, 1)
+emission_energy_multiplier = 1.8
+
+[sub_resource type="BoxMesh" id="BoxMesh_coolbox"]
+material = SubResource("StandardMaterial3D_coolbox")
+size = Vector3(3, 4, 0.1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_pedestal"]
+albedo_color = Color(0.5, 0.51, 0.54, 1)
+albedo_texture = ExtResource("2_metal_albedo")
+roughness = 0.8
+uv1_scale = Vector3(1.5, 1.5, 1.5)
+uv1_triplanar = true
+uv1_world_triplanar = true
+
+[sub_resource type="BoxMesh" id="BoxMesh_pedestal"]
+material = SubResource("StandardMaterial3D_pedestal")
+size = Vector3(1.2, 1.04, 0.6)
+
+[node name="CharacterPreview" type="Node3D"]
+script = ExtResource("1_preview")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_stage")
+
+[node name="KeyLight" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-42, -32, 0)
+light_color = Color(1, 0.96, 0.9, 1)
+light_energy = 2.1
+shadow_enabled = true
+shadow_blur = 1.4
+directional_shadow_mode = 1
+directional_shadow_max_distance = 24.0
+
+[node name="FillLight" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-18, 52, 0)
+light_color = Color(0.62, 0.76, 1, 1)
+light_energy = 0.5
+
+[node name="RimLight" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-30, 158, 0)
+light_color = Color(0.82, 0.91, 1, 1)
+light_energy = 1.4
+shadow_enabled = true
+shadow_blur = 1.6
+directional_shadow_mode = 0
+directional_shadow_max_distance = 22.0
+
+[node name="WarmRim" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-12, -150, 0)
+light_color = Color(1, 0.74, 0.5, 1)
+light_energy = 0.4
+shadow_enabled = true
+shadow_blur = 1.6
+directional_shadow_mode = 0
+directional_shadow_max_distance = 22.0
+
+[node name="ReflectionProbe" type="ReflectionProbe" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 1)
+size = Vector3(40, 10, 40)
+box_projection = true
+
+[node name="Floor" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+
+[node name="Mesh" type="MeshInstance3D" parent="Floor"]
+mesh = SubResource("BoxMesh_floor")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor"]
+shape = SubResource("BoxShape3D_floor")
+
+[node name="Stage" type="Node3D" parent="."]
+
+[node name="BackWall" type="MeshInstance3D" parent="Stage"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, -8.5)
+mesh = SubResource("BoxMesh_wall")
+
+[node name="StripHigh" type="MeshInstance3D" parent="Stage"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.7, -7.9)
+mesh = SubResource("BoxMesh_strip")
+
+[node name="StripLow" type="MeshInstance3D" parent="Stage"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, -7.9)
+mesh = SubResource("BoxMesh_strip")
+
+[node name="FrontWall" type="MeshInstance3D" parent="Stage"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 19)
+mesh = SubResource("BoxMesh_wall")
+
+[node name="FrontStrip" type="MeshInstance3D" parent="Stage"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.7, 18.4)
+mesh = SubResource("BoxMesh_strip")
+
+[node name="LeftWall" type="MeshInstance3D" parent="Stage"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -15, 4, 2)
+mesh = SubResource("BoxMesh_wall")
+
+[node name="LeftStrip" type="MeshInstance3D" parent="Stage"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -14.4, 3.2, 2)
+mesh = SubResource("BoxMesh_strip")
+
+[node name="RightWall" type="MeshInstance3D" parent="Stage"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 15, 4, 2)
+mesh = SubResource("BoxMesh_wall")
+
+[node name="RightStrip" type="MeshInstance3D" parent="Stage"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 14.4, 3.2, 2)
+mesh = SubResource("BoxMesh_strip")
+
+[node name="StripGlowLeft" type="OmniLight3D" parent="Stage"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.6, 3.0, -5.5)
+light_color = Color(0.55, 0.82, 1, 1)
+light_energy = 0.7
+omni_range = 9.0
+
+[node name="StripGlowRight" type="OmniLight3D" parent="Stage"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.6, 3.0, -5.5)
+light_color = Color(0.55, 0.82, 1, 1)
+light_energy = 0.7
+omni_range = 9.0
+
+[node name="KeySoftbox" type="MeshInstance3D" parent="Stage"]
+position = Vector3(-5.5, 7.6, 7.5)
+rotation_degrees = Vector3(-40, -35, 0)
+cast_shadow = 0
+mesh = SubResource("BoxMesh_softbox")
+
+[node name="FillSoftbox" type="MeshInstance3D" parent="Stage"]
+position = Vector3(7, 6.8, 5)
+rotation_degrees = Vector3(-35, 55, 0)
+cast_shadow = 0
+mesh = SubResource("BoxMesh_coolbox")
+
+[node name="Actors" type="Node3D" parent="."]
+
+[node name="Pedestal" type="Node3D" parent="."]
+visible = false
+
+[node name="Block" type="MeshInstance3D" parent="Pedestal"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.52, 0)
+mesh = SubResource("BoxMesh_pedestal")
+
+[node name="StageCamera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.985, 0.174, 0, -0.174, 0.985, 0, 1.9, 6.4)
+current = true
+fov = 50.0
+
+[node name="Viewer" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3.4)
+
+[node name="ViewCamera" type="Camera3D" parent="Viewer"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+fov = 75.0
+near = 0.05

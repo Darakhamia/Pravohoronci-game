@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="GameConfig" format=3 uid="uid://dp5dj7qhstfpx"]
+
+[ext_resource type="Script" uid="uid://dya3sbd2gp1t8" path="res://scripts/gameplay/game_config.gd" id="1_gamecfg"]
+
+[resource]
+script = ExtResource("1_gamecfg")
+min_players = 5
+map_scene = "res://scenes/maps/station.tscn"
+players_for_one_traitor = 3
+players_for_two_traitors = 7
+role_reveal_seconds = 5.0
+results_seconds = 10.0
+tasks_per_player = 4
+meeting_discussion_seconds = 15.0
+meeting_voting_seconds = 30.0
+meeting_verdict_seconds = 6.0
+emergency_meetings_per_player = 1
+emergency_cooldown_seconds = 20.0
+reveal_role_on_eject = true
+sabotage_countdown_seconds = 45.0
+sabotage_cooldown_seconds = 60.0
+sabotage_first_delay_seconds = 30.0
+attack_lock_seconds = 5.0
+perception_near_radius = 2.5
+perception_sight_range = 45.0

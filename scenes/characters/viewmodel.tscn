@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/viewmodel.gd" id="1_viewmodel"]
+[ext_resource type="PackedScene" path="res://assets/models/characters/crewmate_arm.glb" id="2_arms"]
+
+[node name="Viewmodel" type="Node3D"]
+script = ExtResource("1_viewmodel")
+
+[node name="Rig" type="Node3D" parent="."]
+
+[node name="Arms" parent="Rig" instance=ExtResource("2_arms")]

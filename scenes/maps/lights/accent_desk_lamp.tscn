@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+[node name="AccentDeskLamp" type="OmniLight3D"]
+light_color = Color(1, 0.76, 0.48, 1)
+light_energy = 1.6
+light_specular = 0.4
+light_volumetric_fog_energy = 0.5
+omni_range = 3.0
+omni_attenuation = 1.6

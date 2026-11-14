@@ -1,0 +1,73 @@
+[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+uid="uid://rek4w2lan13h"
+path="res://.godot/imported/emergency_button.glb-39f3a9591dfe014d1aedfc4a251d166c.scn"
+
+[deps]
+
+source_file="res://assets/models/props/emergency_button.glb"
+dest_files=["res://.godot/imported/emergency_button.glb-39f3a9591dfe014d1aedfc4a251d166c.scn"]
+
+[params]
+
+nodes/root_type=""
+nodes/root_name=""
+nodes/root_script=null
+mesh_library/use_node_names_as_mesh_names=false
+array_mesh/deduplicate_surfaces=true
+nodes/apply_root_scale=true
+nodes/root_scale=1.0
+nodes/import_as_skeleton_bones=false
+nodes/use_name_suffixes=true
+nodes/use_node_type_suffixes=true
+meshes/ensure_tangents=true
+meshes/generate_lods=true
+meshes/create_shadow_meshes=true
+meshes/light_baking=1
+meshes/lightmap_texel_size=0.2
+meshes/force_disable_compression=false
+skins/use_named_skins=true
+animation/import=true
+animation/fps=30
+animation/trimming=false
+animation/remove_immutable_tracks=true
+animation/import_rest_as_RESET=false
+import_script/path=""
+materials/extract=0
+materials/extract_format=0
+materials/extract_path=""
+_subresources={
+"materials": {
+"env_button_red": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_button_red.tres",
+"use_external/path": "res://resources/materials/env_button_red.tres"
+},
+"env_cover": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_cover.tres",
+"use_external/path": "res://resources/materials/env_cover.tres"
+},
+"env_deep": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_deep.tres",
+"use_external/path": "res://resources/materials/env_deep.tres"
+},
+"env_panel": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_panel.tres",
+"use_external/path": "res://resources/materials/env_panel.tres"
+},
+"env_yellow": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_yellow.tres",
+"use_external/path": "res://resources/materials/env_yellow.tres"
+}
+}
+}
+gltf/naming_version=2
+gltf/embedded_image_handling=1
+gltf/texture_map_mode=1

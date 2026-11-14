@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://assets/textures/decals/label_exit_albedo.png" id="1_albedo"]
+
+[node name="LabelExit" type="Decal"]
+size = Vector3(0.8, 0.36, 0.26)
+texture_albedo = ExtResource("1_albedo")
+normal_fade = 0.5
+upper_fade = 0.01
+lower_fade = 0.01
+distance_fade_enabled = true
+distance_fade_begin = 28.0
+distance_fade_length = 6.0

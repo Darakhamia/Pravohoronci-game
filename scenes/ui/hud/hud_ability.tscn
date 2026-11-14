@@ -1,0 +1,49 @@
+[gd_scene format=3]
+
+[ext_resource type="Theme" path="res://resources/ui/theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://scripts/ui/hud/hud_ability.gd" id="2_ability"]
+[ext_resource type="Script" path="res://scripts/ui/hud/hud_key_cap.gd" id="3_key"]
+
+[node name="Ability" type="PanelContainer"]
+visible = false
+mouse_filter = 2
+theme = ExtResource("1_theme")
+theme_type_variation = &"HudPanel"
+script = ExtResource("2_ability")
+
+[node name="Row" type="HBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Key" type="Label" parent="Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"LabelKey"
+text = "F"
+horizontal_alignment = 1
+vertical_alignment = 1
+script = ExtResource("3_key")
+
+[node name="Title" type="Label" parent="Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"LabelHud"
+text = "Саботаж"
+
+[node name="Divider" type="VSeparator" parent="Row"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VSeparatorHud"
+
+[node name="Cooldown" type="Label" parent="Row"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"LabelHudValue"
+text = "0 с"
+horizontal_alignment = 2

@@ -1,0 +1,234 @@
+[gd_scene format=3 uid="uid://qr10htpa0y1y"]
+
+[ext_resource type="Script" uid="uid://bv6wcrsu6k154" path="res://scripts/ui/main_menu.gd" id="1_menu"]
+[ext_resource type="Script" path="res://scripts/ui/widgets/crew_lineup.gd" id="2_lineup"]
+[ext_resource type="Texture2D" path="res://assets/ui/arrow_right.svg" id="3_arrow"]
+[ext_resource type="Theme" path="res://resources/ui/theme.tres" id="4_theme"]
+[ext_resource type="Script" path="res://scripts/ui/widgets/spinner.gd" id="5_spinner"]
+[ext_resource type="Script" path="res://scripts/ui/widgets/ui_icon.gd" id="6_icon"]
+
+[node name="MainMenu" type="Control" unique_id=822381960]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("4_theme")
+script = ExtResource("1_menu")
+
+[node name="Background" type="Panel" parent="." unique_id=1965444180]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"PanelScreen"
+
+[node name="Page" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 13
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -960.0
+offset_right = 960.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Lineup" type="Control" parent="Page"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 160.0
+offset_top = -104.0
+offset_right = -160.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("2_lineup")
+
+[node name="Margin" type="MarginContainer" parent="Page"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"MarginPage"
+
+[node name="Layout" type="VBoxContainer" parent="Page/Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VBoxSection"
+
+[node name="Masthead" type="VBoxContainer" parent="Page/Margin/Layout"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Heading" type="VBoxContainer" parent="Page/Margin/Layout/Masthead"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VBoxTight"
+
+[node name="Kicker" type="Label" parent="Page/Margin/Layout/Masthead/Heading"]
+layout_mode = 2
+theme_type_variation = &"LabelOverline"
+text = "Один из вас врёт"
+uppercase = true
+
+[node name="TitleInset" type="MarginContainer" parent="Page/Margin/Layout/Masthead/Heading"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"MarginDisplayXL"
+
+[node name="Title" type="Label" parent="Page/Margin/Layout/Masthead/Heading/TitleInset"]
+layout_mode = 2
+theme_type_variation = &"LabelDisplayXL"
+text = "Предатель"
+
+[node name="Rule" type="HSeparator" parent="Page/Margin/Layout/Masthead"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"HSeparatorStrong"
+
+[node name="Form" type="VBoxContainer" parent="Page/Margin/Layout"]
+custom_minimum_size = Vector2(648, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+mouse_filter = 2
+theme_type_variation = &"VBoxRoomy"
+
+[node name="NameField" type="VBoxContainer" parent="Page/Margin/Layout/Form"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VBoxFlush"
+
+[node name="NameLabel" type="Label" parent="Page/Margin/Layout/Form/NameField"]
+layout_mode = 2
+theme_type_variation = &"LabelOverline"
+text = "Имя"
+uppercase = true
+
+[node name="NameEdit" type="LineEdit" parent="Page/Margin/Layout/Form/NameField" unique_id=1923473589]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Игрок"
+context_menu_enabled = false
+
+[node name="AddressField" type="VBoxContainer" parent="Page/Margin/Layout/Form"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VBoxFlush"
+
+[node name="AddressLabel" type="Label" parent="Page/Margin/Layout/Form/AddressField"]
+layout_mode = 2
+theme_type_variation = &"LabelOverline"
+text = "Адрес сервера"
+uppercase = true
+
+[node name="AddressEdit" type="LineEdit" parent="Page/Margin/Layout/Form/AddressField" unique_id=2097458981]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "127.0.0.1:7777"
+context_menu_enabled = false
+
+[node name="GraphicsField" type="VBoxContainer" parent="Page/Margin/Layout/Form"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VBoxFlush"
+
+[node name="GraphicsLabel" type="Label" parent="Page/Margin/Layout/Form/GraphicsField"]
+layout_mode = 2
+theme_type_variation = &"LabelOverline"
+text = "Графика"
+uppercase = true
+
+[node name="GraphicsButton" type="Button" parent="Page/Margin/Layout/Form/GraphicsField"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_default_cursor_shape = 2
+text = "Высокая"
+icon = ExtResource("3_arrow")
+alignment = 0
+icon_alignment = 2
+
+[node name="GraphicsHint" type="Label" parent="Page/Margin/Layout/Form/GraphicsField"]
+layout_mode = 2
+theme_type_variation = &"LabelCaption"
+text = "Игра идёт рывками — снизь уровень. F3 показывает счётчик кадров."
+autowrap_mode = 3
+
+[node name="Actions" type="VBoxContainer" parent="Page/Margin/Layout/Form"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VBoxRoomy"
+
+[node name="Buttons" type="HBoxContainer" parent="Page/Margin/Layout/Form/Actions"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="ConnectButton" type="Button" parent="Page/Margin/Layout/Form/Actions/Buttons" unique_id=1811304390]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_default_cursor_shape = 2
+theme_type_variation = &"ButtonPrimary"
+text = "Подключиться"
+icon = ExtResource("3_arrow")
+alignment = 0
+icon_alignment = 2
+
+[node name="Spinner" type="Control" parent="Page/Margin/Layout/Form/Actions/Buttons/ConnectButton"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -60.0
+offset_top = -14.0
+offset_right = -32.0
+offset_bottom = 14.0
+grow_horizontal = 0
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("5_spinner")
+
+[node name="QuitButton" type="Button" parent="Page/Margin/Layout/Form/Actions/Buttons" unique_id=2051507154]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_type_variation = &"ButtonQuiet"
+text = "Выход"
+
+[node name="Status" type="HBoxContainer" parent="Page/Margin/Layout/Form/Actions"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Icon" type="Control" parent="Page/Margin/Layout/Form/Actions/Status"]
+custom_minimum_size = Vector2(32, 34)
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+script = ExtResource("6_icon")
+color = Color(1, 0.3647059, 0.4509804, 1)
+
+[node name="StatusLabel" type="Label" parent="Page/Margin/Layout/Form/Actions/Status" unique_id=940657999]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"LabelError"
+autowrap_mode = 3
+max_lines_visible = 3
+text_overrun_behavior = 3

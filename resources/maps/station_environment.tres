@@ -1,0 +1,236 @@
+[gd_resource type="Environment" format=3]
+
+[sub_resource type="Shader" id="Shader_space"]
+code = "shader_type sky;
+// Космос за окнами станции: звёздное поле, слабая полоса туманности, далёкое солнце и газовый гигант
+// с полосами облаков, терминатором, кольцами и тенями (кольца на планете и планеты на кольцах).
+// Всё считается в одном проходе без текстур. В проходе кубической карты (она нужна отражениям и GI)
+// звёзды и солнце пропускаются: это точечные источники, в карте низкого разрешения они дают шум.
+
+uniform vec3 space_color : source_color = vec3(0.004, 0.005, 0.012);
+uniform vec3 nebula_color_a : source_color = vec3(0.22, 0.13, 0.36);
+uniform vec3 nebula_color_b : source_color = vec3(0.07, 0.24, 0.32);
+uniform float nebula_strength = 0.1;
+uniform float star_scale = 150.0;
+uniform float star_density = 0.11;
+uniform float star_energy = 2.2;
+// Куда смотреть, чтобы увидеть планету (в мировых координатах), и её угловой радиус в радианах.
+uniform vec3 planet_direction = vec3(-0.3, 0.1, -1.0);
+uniform float planet_radius = 0.15;
+uniform float planet_tilt = -0.35;
+uniform vec3 planet_color_a : source_color = vec3(0.74, 0.44, 0.36);
+uniform vec3 planet_color_b : source_color = vec3(0.9, 0.72, 0.5);
+uniform vec3 ring_color : source_color = vec3(0.86, 0.76, 0.6);
+// Направление НА солнце. С ним должен совпадать DirectionalLight3D карты (scenes/maps/lights/sun_light.tscn).
+uniform vec3 sun_direction = vec3(0.8, 0.35, -0.5);
+uniform vec3 sun_color : source_color = vec3(1.0, 0.95, 0.86);
+uniform float sun_energy = 6.0;
+uniform float sun_radius = 0.006;
+uniform vec3 atmosphere_color : source_color = vec3(1.0, 0.72, 0.5);
+uniform float planet_energy = 1.25;
+// Отношение малой оси эллипса колец к большой: насколько кольца развёрнуты к наблюдателю.
+uniform float ring_flatten = 0.26;
+uniform float ring_inner = 1.35;
+uniform float ring_outer = 2.25;
+
+float hash13(vec3 p) {
+	p = fract(p * 0.1031);
+	p += dot(p, p.zyx + 31.32);
+	return fract((p.x + p.y) * p.z);
+}
+
+float hash11(float p) {
+	p = fract(p * 0.1031);
+	p *= p + 33.33;
+	return fract(p * (p + p));
+}
+
+float value_noise(vec3 p) {
+	vec3 i = floor(p);
+	vec3 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	float bottom = mix(mix(hash13(i), hash13(i + vec3(1.0, 0.0, 0.0)), f.x),
+			mix(hash13(i + vec3(0.0, 1.0, 0.0)), hash13(i + vec3(1.0, 1.0, 0.0)), f.x), f.y);
+	float top = mix(mix(hash13(i + vec3(0.0, 0.0, 1.0)), hash13(i + vec3(1.0, 0.0, 1.0)), f.x),
+			mix(hash13(i + vec3(0.0, 1.0, 1.0)), hash13(i + vec3(1.0, 1.0, 1.0)), f.x), f.y);
+	return mix(bottom, top, f.z);
+}
+
+float fbm(vec3 p) {
+	return value_noise(p) * 0.5 + value_noise(p * 2.03 + 11.0) * 0.3 + value_noise(p * 4.1 + 23.0) * 0.2;
+}
+
+float noise1(float x) {
+	float i = floor(x);
+	float f = fract(x);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(hash11(i), hash11(i + 1.0), f);
+}
+
+// Слой звёзд: одна звезда на ячейку, яркость распределена неравномерно (тусклых много, ярких мало).
+vec3 star_layer(vec3 dir, float scale, float density, float size) {
+	vec3 cell_position = dir * scale;
+	vec3 cell = floor(cell_position);
+	if (hash13(cell) >= density) {
+		return vec3(0.0);
+	}
+	vec3 offset = vec3(hash13(cell + 11.0), hash13(cell + 23.0), hash13(cell + 37.0)) * 0.6 + 0.2;
+	float distance_to_star = length(fract(cell_position) - offset);
+	float radius = size * (0.6 + 0.8 * hash13(cell + 51.0));
+	float star = smoothstep(radius, radius * 0.2, distance_to_star);
+	float brightness = 0.08 + pow(hash13(cell + 71.0), 5.0);
+	// Цветовая температура: от голубоватых до оранжевых.
+	float warmth = hash13(cell + 93.0);
+	vec3 tint = mix(vec3(0.72, 0.82, 1.0), vec3(1.0, 0.8, 0.6), warmth * warmth);
+	return tint * star * brightness;
+}
+
+// Плотность колец по радиусу: тонкие дорожки и тёмная щель.
+float ring_density(float radius) {
+	float inside = smoothstep(ring_inner, ring_inner + 0.06, radius) * smoothstep(ring_outer, ring_outer - 0.05, radius);
+	float lanes = 0.45 + 0.55 * noise1(radius * 34.0) * (0.6 + 0.4 * noise1(radius * 150.0));
+	float gap = 1.0 - 0.85 * smoothstep(0.035, 0.012, abs(radius - mix(ring_inner, ring_outer, 0.62)));
+	return inside * lanes * gap;
+}
+
+void sky() {
+	vec3 dir = normalize(EYEDIR);
+	vec3 sun = normalize(sun_direction);
+	// Полоса туманности вдоль наклонного большого круга — намёк на галактический диск.
+	float band = exp(-pow(dot(dir, normalize(vec3(0.35, 0.9, 0.2))) * 3.2, 2.0));
+	float cloud = fbm(dir * 3.1);
+	vec3 nebula = mix(nebula_color_a, nebula_color_b, value_noise(dir * 1.7 + 3.0));
+	vec3 color = space_color + nebula * (0.25 + 0.75 * band) * smoothstep(0.35, 0.8, cloud) * nebula_strength;
+	if (!AT_CUBEMAP_PASS) {
+		vec3 stars = star_layer(dir, star_scale, star_density, 0.11) + star_layer(dir, star_scale * 2.7, star_density * 1.6, 0.14) * 0.45
+				+ star_layer(dir, star_scale * 0.31, star_density * 0.35, 0.035) * 3.0;
+		color += stars * star_energy * (0.6 + 0.8 * band);
+		float sun_angle = acos(clamp(dot(dir, sun), -1.0, 1.0));
+		float disc = smoothstep(sun_radius, sun_radius * 0.8, sun_angle);
+		float halo = exp(-sun_angle * 50.0) * 0.05 + exp(-sun_angle * 12.0) * 0.003;
+		color += sun_color * sun_energy * (disc + halo);
+	}
+	vec3 planet_dir = normalize(planet_direction);
+	float facing = dot(dir, planet_dir);
+	if (facing > 0.0) {
+		vec3 right = normalize(cross(planet_dir, vec3(0.0, 1.0, 0.0)));
+		vec3 up = cross(right, planet_dir);
+		float cos_tilt = cos(planet_tilt);
+		float sin_tilt = sin(planet_tilt);
+		vec2 uv = vec2(dot(dir, right), dot(dir, up)) / (facing * tan(planet_radius));
+		// Дальше всё в «наклонной» системе планеты: X вдоль большой оси колец, Z — на наблюдателя.
+		vec2 tilted = vec2(uv.x * cos_tilt - uv.y * sin_tilt, uv.x * sin_tilt + uv.y * cos_tilt);
+		vec3 sun_view = vec3(dot(sun, right), dot(sun, up), dot(sun, -planet_dir));
+		vec3 sun_local = normalize(vec3(sun_view.x * cos_tilt - sun_view.y * sin_tilt, sun_view.x * sin_tilt + sun_view.y * cos_tilt, sun_view.z));
+		float ring_depth = sqrt(1.0 - ring_flatten * ring_flatten);
+		// Нормаль плоскости колец — она же ось вращения планеты.
+		vec3 axis = vec3(0.0, ring_depth, ring_flatten);
+		float radius = length(uv);
+		// Свечение атмосферы за краем диска — только с освещённой стороны.
+		float rim_light = smoothstep(-0.2, 0.5, dot(normalize(vec3(tilted, 0.0)), sun_local));
+		color += atmosphere_color * exp(-max(radius - 1.0, 0.0) * 26.0) * 0.22 * rim_light * step(1.0, radius) * planet_energy;
+		if (radius < 1.0) {
+			vec3 normal = vec3(tilted, sqrt(1.0 - radius * radius));
+			float latitude = dot(normal, axis);
+			// Полосы облаков: широтные пояса, слегка размытые турбулентностью.
+			float swirl = fbm(normal * vec3(2.5, 9.0, 2.5) + 5.0) - 0.5;
+			float belts = 0.5 + 0.5 * sin(latitude * 17.0 + swirl * 3.2 + 2.0 * noise1(latitude * 6.0));
+			float fine = noise1(latitude * 55.0 + swirl * 6.0);
+			vec3 base = mix(planet_color_a, planet_color_b, smoothstep(0.2, 0.8, belts));
+			base *= 0.82 + 0.3 * fine;
+			base = mix(base, planet_color_a * 0.55, smoothstep(0.75, 1.0, abs(latitude)) * 0.7);
+			float sun_dot = dot(normal, sun_local);
+			float light = smoothstep(-0.06, 0.55, sun_dot) * (0.55 + 0.45 * sun_dot);
+			// Тень колец на планете: луч от точки поверхности к солнцу пересекает плоскость колец.
+			float toward_plane = dot(sun_local, axis);
+			if (abs(toward_plane) > 0.001) {
+				float travel = -dot(normal, axis) / toward_plane;
+				if (travel > 0.0) {
+					float hit_radius = length(normal + sun_local * travel);
+					light *= 1.0 - 0.8 * ring_density(hit_radius);
+				}
+			}
+			// К краю диска атмосфера гасит контраст и добавляет дымку.
+			float limb = pow(normal.z, 0.45);
+			vec3 lit = base * light * (0.35 + 0.65 * limb) + atmosphere_color * pow(1.0 - normal.z, 3.0) * 0.5 * smoothstep(-0.1, 0.4, sun_dot);
+			color = lit * planet_energy + space_color;
+		}
+		float ring_radius = length(vec2(tilted.x, tilted.y / ring_flatten));
+		if (ring_radius > ring_inner && ring_radius < ring_outer && (radius >= 1.0 || tilted.y < 0.0)) {
+			float density = ring_density(ring_radius);
+			// Точка кольца в пространстве: нижняя половина эллипса ближе к наблюдателю.
+			vec3 ring_point = vec3(tilted.x, tilted.y, -tilted.y / ring_flatten * ring_depth);
+			float along = dot(ring_point, sun_local);
+			float shadow = 1.0;
+			if (along < 0.0) {
+				shadow = smoothstep(0.96, 1.04, length(ring_point - sun_local * along));
+			}
+			vec3 ring_lit = ring_color * (0.5 + 0.5 * noise1(ring_radius * 21.0)) * mix(0.03, 1.0, shadow) * planet_energy * 0.9;
+			color = mix(color, ring_lit, clamp(density * 1.15, 0.0, 1.0));
+		}
+	}
+	COLOR = color;
+}
+"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_space"]
+shader = SubResource("Shader_space")
+
+[sub_resource type="Sky" id="Sky_space"]
+sky_material = SubResource("ShaderMaterial_space")
+radiance_size = 1
+
+[resource]
+background_mode = 2
+sky = SubResource("Sky_space")
+ambient_light_source = 2
+ambient_light_color = Color(0.5, 0.56, 0.8, 1)
+ambient_light_energy = 0.3
+reflected_light_source = 2
+tonemap_mode = 4
+tonemap_exposure = 1.1
+tonemap_white = 6.0
+ssr_enabled = true
+ssr_max_steps = 48
+ssr_fade_in = 0.15
+ssr_fade_out = 2.0
+ssr_depth_tolerance = 0.3
+ssao_enabled = true
+ssao_radius = 0.7
+ssao_intensity = 1.15
+ssao_power = 1.2
+ssao_detail = 0.5
+ssao_horizon = 0.06
+ssao_light_affect = 0.25
+ssil_enabled = true
+ssil_radius = 3.5
+ssil_intensity = 1.0
+sdfgi_enabled = true
+sdfgi_use_occlusion = true
+sdfgi_bounce_feedback = 0.5
+sdfgi_cascades = 4
+sdfgi_min_cell_size = 0.2
+sdfgi_energy = 1.7
+glow_enabled = true
+glow_levels/1 = 0.0
+glow_levels/2 = 0.6
+glow_levels/3 = 1.0
+glow_levels/4 = 0.8
+glow_levels/5 = 0.4
+glow_intensity = 0.25
+glow_strength = 1.0
+glow_bloom = 0.02
+glow_blend_mode = 0
+glow_hdr_threshold = 1.1
+glow_hdr_scale = 2.0
+volumetric_fog_enabled = true
+volumetric_fog_density = 0.0045
+volumetric_fog_albedo = Color(0.82, 0.87, 1, 1)
+volumetric_fog_anisotropy = 0.25
+volumetric_fog_length = 48.0
+volumetric_fog_gi_inject = 0.7
+volumetric_fog_ambient_inject = 0.0
+volumetric_fog_sky_affect = 0.0
+adjustment_enabled = true
+adjustment_contrast = 1.08
+adjustment_saturation = 1.04

@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+[node name="AccentEmergency" type="OmniLight3D"]
+light_color = Color(1, 0.16, 0.12, 1)
+light_energy = 2.4
+light_specular = 0.5
+light_volumetric_fog_energy = 1.2
+omni_range = 4.5
+omni_attenuation = 1.5

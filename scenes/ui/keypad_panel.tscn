@@ -1,0 +1,176 @@
+[gd_scene format=3]
+
+[ext_resource type="Theme" path="res://resources/ui/theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://scripts/ui/keypad_panel.gd" id="2_keypad"]
+
+[node name="KeypadPanel" type="Control"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_theme")
+script = ExtResource("2_keypad")
+
+[node name="Dim" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"PanelScrim"
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"PanelModal"
+
+[node name="Layout" type="VBoxContainer" parent="Center/Panel"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VBoxRoomy"
+
+[node name="Heading" type="VBoxContainer" parent="Center/Panel/Layout"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VBoxTight"
+
+[node name="Kicker" type="Label" parent="Center/Panel/Layout/Heading"]
+layout_mode = 2
+theme_type_variation = &"LabelOverline"
+text = "Задание"
+uppercase = true
+
+[node name="Title" type="Label" parent="Center/Panel/Layout/Heading"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(640, 0)
+layout_mode = 2
+theme_type_variation = &"LabelHeading"
+text = "Ввести код"
+text_overrun_behavior = 3
+
+[node name="Body" type="HBoxContainer" parent="Center/Panel/Layout"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"HBoxFlush"
+
+[node name="Info" type="VBoxContainer" parent="Center/Panel/Layout/Body"]
+custom_minimum_size = Vector2(288, 0)
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VBoxRoomy"
+
+[node name="Note" type="Control" parent="Center/Panel/Layout/Body/Info"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(288, 176)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Sticker" type="PanelContainer" parent="Center/Panel/Layout/Body/Info/Note"]
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
+theme_type_variation = &"PanelSticker"
+
+[node name="Text" type="VBoxContainer" parent="Center/Panel/Layout/Body/Info/Note/Sticker"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"VBoxFlush"
+
+[node name="Caption" type="Label" parent="Center/Panel/Layout/Body/Info/Note/Sticker/Text"]
+layout_mode = 2
+theme_type_variation = &"LabelStickerCaption"
+text = "Код доступа"
+uppercase = true
+
+[node name="Code" type="Label" parent="Center/Panel/Layout/Body/Info/Note/Sticker/Text"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"LabelStickerCode"
+text = "0000"
+
+[node name="Hint" type="Label" parent="Center/Panel/Layout/Body/Info"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"LabelDim"
+text = "Набери этот код и подтверди."
+autowrap_mode = 3
+
+[node name="Gap" type="Control" parent="Center/Panel/Layout/Body"]
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="Pad" type="VBoxContainer" parent="Center/Panel/Layout/Body"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="CellsHolder" type="Control" parent="Center/Panel/Layout/Body/Pad"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(304, 80)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Cells" type="HBoxContainer" parent="Center/Panel/Layout/Body/Pad/CellsHolder"]
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
+theme_type_variation = &"HBoxTight"
+
+[node name="Keys" type="GridContainer" parent="Center/Panel/Layout/Body/Pad"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"GridKeys"
+columns = 3
+
+[node name="Footer" type="HBoxContainer" parent="Center/Panel/Layout"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"HBoxSnug"
+
+[node name="EscKey" type="Label" parent="Center/Panel/Layout/Footer"]
+custom_minimum_size = Vector2(40, 36)
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"LabelKeyDim"
+text = "Esc"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="EscText" type="Label" parent="Center/Panel/Layout/Footer"]
+layout_mode = 2
+theme_type_variation = &"LabelCaption"
+text = "закрыть"
+
+[node name="FooterGap" type="Control" parent="Center/Panel/Layout/Footer"]
+custom_minimum_size = Vector2(16, 0)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="EnterKey" type="Label" parent="Center/Panel/Layout/Footer"]
+custom_minimum_size = Vector2(40, 36)
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"LabelKeyDim"
+text = "Enter"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="EnterText" type="Label" parent="Center/Panel/Layout/Footer"]
+layout_mode = 2
+theme_type_variation = &"LabelCaption"
+text = "подтвердить"

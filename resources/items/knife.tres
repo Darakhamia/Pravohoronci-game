@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WeaponConfig" format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/items/weapon_config.gd" id="1_weapon"]
+[ext_resource type="PackedScene" path="res://assets/models/weapons/knife.glb" id="2_model"]
+
+[resource]
+script = ExtResource("1_weapon")
+title = "Нож"
+model = ExtResource("2_model")
+kind = 0
+damage = 100
+attack_range = 1.9
+attack_interval = 1.0
+draw_seconds = 0.5
+hit_radius = 0.15
+traitor_only = true

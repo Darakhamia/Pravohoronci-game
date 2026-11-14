@@ -1,0 +1,16 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/textures/surfaces/water_normal.png" id="1_tex"]
+
+[resource]
+transparency = 1
+albedo_color = Color(0.3098, 0.7059, 0.7686, 0.38)
+metallic = 0
+roughness = 0.06
+normal_enabled = true
+normal_scale = 0.5
+normal_texture = ExtResource("1_tex")
+uv1_scale = Vector3(2.5, 2.5, 2.5)
+uv1_triplanar = true
+uv1_triplanar_sharpness = 4.0
+texture_filter = 5

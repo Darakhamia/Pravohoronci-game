@@ -1,0 +1,26 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/interaction/canister_rack.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://assets/models/props/canister_rack.glb" id="2_model"]
+[ext_resource type="Script" path="res://scripts/gameplay/interaction/task_marker.gd" id="3_marker"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_body"]
+size = Vector3(1.33, 1.3, 0.49)
+
+[node name="CanisterRack" type="Node3D"]
+script = ExtResource("1_script")
+prompt = "Взять канистру"
+focus_offset = Vector3(0, 1.0, -0.33)
+
+[node name="Model" parent="." instance=ExtResource("2_model")]
+
+[node name="Body" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.65, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Body"]
+shape = SubResource("BoxShape3D_body")
+
+[node name="Marker" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+visible = false
+script = ExtResource("3_marker")

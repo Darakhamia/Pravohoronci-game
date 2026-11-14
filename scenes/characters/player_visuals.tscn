@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://c13yt3t7n5sow"]
+
+[ext_resource type="Script" uid="uid://ygsg8rnc0iyj" path="res://scripts/gameplay/player_visuals.gd" id="1_visuals"]
+[ext_resource type="PackedScene" path="res://assets/models/characters/crewmate.glb" id="2_model"]
+[ext_resource type="PackedScene" path="res://scenes/characters/limb_prop.tscn" id="3_limb"]
+[ext_resource type="FontFile" path="res://assets/fonts/Onest.ttf" id="4_font"]
+[ext_resource type="PackedScene" path="res://scenes/characters/limb_burst.tscn" id="5_burst"]
+
+[node name="PlayerVisuals" type="Node3D" unique_id=1284961988]
+script = ExtResource("1_visuals")
+limb_prop_scene = ExtResource("3_limb")
+limb_burst_scene = ExtResource("5_burst")
+
+[node name="Model" parent="." instance=ExtResource("2_model")]
+
+[node name="NameLabel" type="Label3D" parent="." unique_id=1090468921]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.02, 0)
+pixel_size = 0.0022
+billboard = 1
+modulate = Color(0.949, 0.953, 0.969, 1)
+outline_modulate = Color(0.055, 0.063, 0.125, 1)
+font = ExtResource("4_font")
+font_size = 64
+outline_size = 14
+
+[node name="Props" type="Node" parent="."]
