@@ -20,7 +20,9 @@
 
 Стены, окна, проёмы и колонны выводятся из плана сами: между разными помещениями — стена
 (или проём из DOORS), между помещением и пустотой — наружная стена (окно из WINDOWS).
-Рецепт света — в tests/visual/kit_preview.gd; здесь он записан таблицами.
+Рецепт света — в tests/visual/kit_preview.gd; здесь он записан таблицами: потолочные панели,
+ключевые источники с тенями (scenes/maps/lights/key_light.tscn), цветные акценты, солнце и декали
+(scenes/maps/decals).
 """
 
 import math
@@ -140,12 +142,22 @@ HAZARD_FLOORS = {
 # Клетки без потолочного светильника: так помещение темнее.
 PLAIN_CEILINGS = [
     (8, 4),  # над ядром реактора светит само ядро
-    (1, 3), (0, 4), (1, 5),  # Склад
-    (1, 1), (0, 2),  # Серверная
     (1, 7), (0, 8),  # Каюты
     (8, 7),  # Шлюз
-    (3, 2), (5, 2), (2, 3), (2, 5), (6, 3), (6, 5), (3, 6), (5, 6),  # коридоры
 ]
+# Клетки с «техническим» потолком (вентиляционный короб и кабельный лоток вместо светильника):
+# клетка -> поворот. Короб идёт вдоль локальной оси X и стыкуется с соседним, если клетки стоят
+# в ряд вдоль него. В коридорах короб пересекает проход от стены до стены, в технических
+# помещениях тянется вдоль стены.
+ALONG_X = 0.0
+ALONG_Z = 90.0
+DUCT_CEILINGS = {
+    (3, 2): ALONG_Z, (5, 2): ALONG_Z, (3, 6): ALONG_Z, (5, 6): ALONG_Z,  # северный и южный коридоры
+    (2, 3): ALONG_X, (2, 5): ALONG_X, (6, 3): ALONG_X, (6, 5): ALONG_X,  # западный и восточный коридоры
+    (0, 3): ALONG_Z, (0, 4): ALONG_Z, (0, 5): ALONG_Z,  # Склад: вдоль западной стены
+    (0, 1): ALONG_Z, (0, 2): ALONG_Z,  # Серверная: над рядом стоек
+    (9, 3): ALONG_Z, (9, 4): ALONG_Z, (9, 5): ALONG_Z,  # Реактор: над портами для канистр
+}
 
 # Габариты моделей в своих координатах: (x_min, x_max, z_min, z_max, высота). Перёд — это -Z.
 FOOTPRINTS = {
@@ -337,42 +349,114 @@ EXTRA_SIGNS = [
     ((2, 2), "W", "Серверная →", "V"),
 ]
 
-WARM = "Color(1, 0.95, 0.86, 1)"
-COLD = "Color(0.86, 0.93, 1, 1)"
+WARM = "Color(1, 0.94, 0.85, 1)"
+COOL = "Color(0.86, 0.93, 1, 1)"
 
 
 def color(rgb):
     return "Color(%s, %s, %s, 1)" % tuple(number(value) for value in rgb)
 
 
-def key_light(name, x, y, z, light_color, energy, reach):
-    """Источник с тенями: один на большую комнату."""
-    return (name, (x, y, z), dict(light_color=light_color, light_energy=energy, omni_range=reach,
-            omni_attenuation=1.0, shadow_enabled="true", shadow_bias=0.06))
+# Ключевой свет (key_light.tscn, с тенями): высота и общие свойства экземпляра. Дальше
+# SHADOW_REACH от камеры тени не считаются, дальше LIGHT_REACH гаснет и сам свет: карта 40 x 36 м,
+# и лампы на другом конце станции игрок всё равно не видит.
+KEY_Y = 2.6
+SHADOW_REACH = 24.0
+LIGHT_REACH = 30.0
+LIGHT_FADE = 6.0
+KEY_COMMON = dict(distance_fade_enabled="true", distance_fade_begin=LIGHT_REACH, distance_fade_shadow=SHADOW_REACH,
+        distance_fade_length=LIGHT_FADE)
+# (узел, x, z, цвет, яркость): один на помещение (в большом — ярче), в коридорах — на углах и
+# серединах кольца. Жилые помещения тёплые, технические и коридоры холодные.
+KEY_LIGHTS = [
+    ("MeetingKey", 16.0, 16.0, WARM, 6.5),
+    ("OfficeKey", 16.0, 2.0, WARM, 5.5),
+    ("CabinsKey", 2.0, 30.0, WARM, 4.5),
+    ("ServerKey", 3.9, 6.0, COOL, 4.5),
+    ("StorageKey", 2.6, 16.0, COOL, 5.0),
+    ("LabKey", 30.0, 6.6, COOL, 5.0),
+    ("AirlockKey", 30.0, 30.0, COOL, 5.0),
+    ("ReactorKey", 32.0, 20.4, COOL, 3.5),
+    ("CorridorNorthWest", 8.0, 8.0, COOL, 3.0), ("CorridorNorth", 16.0, 8.0, COOL, 3.0),
+    ("CorridorNorthEast", 24.0, 8.0, COOL, 3.0), ("CorridorWest", 8.0, 16.0, COOL, 3.0),
+    ("CorridorEast", 24.0, 16.0, COOL, 3.0), ("CorridorSouthWest", 8.0, 24.0, COOL, 3.0),
+    ("CorridorSouth", 16.0, 24.0, COOL, 3.0), ("CorridorSouthEast", 24.0, 24.0, COOL, 3.0),
+]
+# Акценты без теней (префабы accent_*): (узел, префаб, x, y, z, цвет помещения или None, яркость
+# или None). Радиус у них меньше расстояния до внутренних стен (наружные не в счёт: за ними космос).
+STRIP = "accent_strip_cool"
+LAMP = "accent_desk_lamp"
+EMERGENCY = "accent_emergency"
+ROOM_ACCENT_ENERGY = 2.0
+ACCENT_LIGHTS = [
+    # цвет помещения: по нему игроки узнают место
+    ("OfficeAccent", STRIP, 16.0, 2.2, 2.0, "O", ROOM_ACCENT_ENERGY),
+    ("StorageAccent", STRIP, 2.0, 2.0, 18.0, "W", ROOM_ACCENT_ENERGY),
+    ("ServerAccent", STRIP, 2.0, 2.2, 6.0, "V", ROOM_ACCENT_ENERGY),
+    ("ServerCorner", STRIP, 0.2, 1.8, 4.2, "V", ROOM_ACCENT_ENERGY),
+    ("LabAccent", STRIP, 30.0, 2.2, 6.0, "L", ROOM_ACCENT_ENERGY),
+    ("LabCorner", STRIP, 31.8, 1.8, 4.2, "L", ROOM_ACCENT_ENERGY),
+    ("AirlockAccent", STRIP, 30.0, 2.2, 30.0, "A", ROOM_ACCENT_ENERGY),
+    ("AirlockCorner", STRIP, 31.8, 1.8, 31.8, "A", ROOM_ACCENT_ENERGY),
+    ("CabinsAccent", STRIP, 2.0, 2.2, 30.0, "K", ROOM_ACCENT_ENERGY),
+    ("CabinsCorner", STRIP, 0.2, 1.8, 31.8, "K", ROOM_ACCENT_ENERGY),
+    # торшеры
+    ("MeetingLamp", LAMP, 21.35, 1.4, 14.9, None, None), ("OfficeLamp", LAMP, 21.4, 1.4, -1.42, None, None),
+    ("LabLamp", LAMP, 33.42, 1.4, 2.5, None, None), ("CabinsLamp", LAMP, 5.4, 1.4, 26.6, None, None),
+    # светящиеся полосы арок
+    ("ArchNorth", STRIP, 22.0, 2.6, 8.0, None, None), ("ArchWest", STRIP, 8.0, 2.6, 14.0, None, None),
+    ("ArchEast", STRIP, 24.0, 2.6, 18.0, None, None), ("ArchSouth", STRIP, 14.0, 2.6, 24.0, None, None),
+    # красный свет над дверями реактора: опасное помещение видно ещё из коридора
+    ("ReactorWestDoor", EMERGENCY, 26.6, 2.75, 16.0, None, None),
+    ("ReactorNorthDoor", EMERGENCY, 32.0, 2.75, 10.6, None, None),
+]
+# Свечение реактора: единственный цветной источник с тенями — прутья клетки ядра ложатся на стены.
+REACTOR_GLOW_POSITION = (32.0, 1.35, 16.0)
+REACTOR_GLOW = dict(light_color=color(ACCENTS["R"]), light_energy=5.0, light_size=0.12,
+        light_volumetric_fog_energy=1.5, omni_range=7.0, omni_attenuation=1.8, shadow_enabled="true",
+        shadow_bias=0.04)
 
-
-def accent_light(name, x, y, z, room, energy, reach):
-    """Цветной акцент без теней: до внутренних стен не достаёт (наружные не в счёт — за ними космос)."""
-    return (name, (x, y, z), dict(light_color=color(ACCENTS[room]), light_energy=energy, omni_range=reach,
-            omni_attenuation=0.8))
-
-
-LIGHTS = [
-    key_light("MeetingKey", 16.0, 2.9, 16.0, WARM, 1.5, 9.5),
-    key_light("OfficeKey", 16.0, 2.8, 2.2, WARM, 1.5, 9.5),
-    key_light("ReactorKey", 32.0, 2.95, 19.6, COLD, 1.2, 9.5),
-    key_light("StorageKey", 2.0, 2.9, 16.0, "Color(0.82, 1, 0.88, 1)", 1.2, 9.0),
-    accent_light("ReactorGlow", 32.0, 1.35, 16.0, "R", 3.0, 3.5),
-    accent_light("OfficeAccent", 16.0, 2.2, 2.0, "O", 1.6, 3.6),
-    accent_light("StorageAccent", 2.0, 2.0, 18.0, "W", 2.0, 3.6),
-    accent_light("ServerAccent", 2.0, 2.2, 6.0, "V", 2.6, 3.6),
-    accent_light("ServerCorner", 0.2, 1.8, 4.2, "V", 2.2, 3.6),
-    accent_light("LabAccent", 30.0, 2.2, 6.0, "L", 2.6, 3.6),
-    accent_light("LabCorner", 31.8, 1.8, 4.2, "L", 2.2, 3.6),
-    accent_light("AirlockAccent", 30.0, 2.2, 30.0, "A", 2.4, 3.6),
-    accent_light("AirlockCorner", 31.8, 1.8, 31.8, "A", 2.2, 3.6),
-    accent_light("CabinsAccent", 2.0, 2.2, 30.0, "K", 2.4, 3.6),
-    accent_light("CabinsCorner", 0.2, 1.8, 31.8, "K", 2.2, 3.6),
+# Декали. На полу: ("floor", имя, x, z, поворот) — у стрелки остриё смотрит вдоль локальной +X.
+# На стене: ("wall", имя, клетка, сторона, сдвиг вдоль стены, высота центра).
+ARROW_EAST = 0.0
+ARROW_WEST = 180.0
+ARROW_NORTH = 90.0
+ARROW_SOUTH = -90.0
+DECALS = [
+    # Реактор
+    ("floor", "hazard_ring", 32.0, 16.0, 0.0), ("floor", "stain_oil", 35.5, 19.6, 130.0),
+    ("floor", "scuffs_floor", 28.2, 16.0, 40.0), ("wall", "label_danger", (7, 5), "W", -1.0, 2.0),
+    ("wall", "number_06", (9, 5), "S", 0.5, 2.1), ("wall", "leak_wall", (7, 3), "N", -1.1, 1.6),
+    # Кают-компания
+    ("wall", "number_01", (5, 3), "N", 0.0, 2.1), ("floor", "stain_coffee", 14.9, 20.7, 20.0),
+    ("floor", "scuffs_floor", 16.0, 11.0, 0.0), ("floor", "scuffs_floor", 11.0, 20.0, 70.0),
+    ("floor", "scuffs_floor", 21.0, 12.0, 130.0),
+    # Офис
+    ("wall", "number_02", (3, 1), "S", -1.0, 2.1), ("floor", "stain_coffee", 20.7, 3.3, 110.0),
+    ("floor", "scuffs_floor", 19.9, 4.6, 20.0),
+    # Серверная
+    ("wall", "number_03", (1, 2), "E", -1.2, 2.1), ("floor", "scuffs_floor", 4.6, 4.2, 100.0),
+    # Склад
+    ("wall", "number_04", (1, 3), "E", -0.6, 2.1), ("floor", "stain_oil", 2.2, 19.2, 30.0),
+    ("wall", "leak_wall", (1, 5), "E", -0.8, 1.6), ("floor", "grime_corner", -0.6, 21.55, 0.0),
+    ("floor", "scuffs_floor", 4.6, 16.0, 150.0),
+    # Лаборатория
+    ("wall", "number_05", (8, 1), "E", -1.2, 2.2), ("wall", "label_danger", (8, 2), "S", 1.42, 1.95),
+    ("floor", "stain_oil", 32.6, 8.6, 60.0),
+    # Шлюз
+    ("wall", "label_exit", (8, 8), "E", 1.0, 2.2), ("floor", "stain_oil", 28.6, 32.2, 200.0),
+    ("wall", "leak_wall", (8, 7), "E", -0.9, 1.6), ("floor", "scuffs_floor", 27.2, 28.0, 60.0),
+    # Каюты
+    ("wall", "label_quarters", (2, 7), "E", 0.0, 2.0), ("floor", "stain_coffee", 1.3, 29.3, 0.0),
+    # Коридоры: стрелки ведут к дверям кают-компании
+    ("floor", "arrow_floor", 13.2, 8.0, ARROW_EAST), ("floor", "arrow_floor", 18.8, 8.0, ARROW_WEST),
+    ("floor", "arrow_floor", 8.0, 17.3, ARROW_SOUTH), ("floor", "arrow_floor", 8.0, 22.6, ARROW_NORTH),
+    ("floor", "arrow_floor", 24.0, 9.4, ARROW_SOUTH), ("floor", "arrow_floor", 24.0, 14.6, ARROW_NORTH),
+    ("wall", "label_reactor", (6, 5), "E", -1.0, 2.0), ("wall", "label_storage", (2, 5), "W", -1.0, 2.0),
+    ("wall", "leak_wall", (2, 4), "E", -0.9, 1.6), ("floor", "stain_oil", 9.2, 28.6, 80.0),
+    ("floor", "scuffs_floor", 8.0, 8.0, 30.0), ("floor", "scuffs_floor", 24.0, 24.0, 100.0),
+    ("floor", "scuffs_floor", 16.0, 24.0, 10.0), ("floor", "hazard_stripe", 6.75, 16.0, 90.0),
+    ("floor", "grime_corner", 22.6, 25.55, 0.0),
 ]
 
 MEETING_CENTER = (16.0, 16.0)
@@ -419,6 +503,20 @@ def transform(x, y, z, yaw_deg=0.0):
     angle = math.radians(yaw_deg)
     cos_a, sin_a = math.cos(angle), math.sin(angle)
     values = (cos_a, 0.0, sin_a, 0.0, 1.0, 0.0, -sin_a, 0.0, cos_a, x, y, z)
+    return "Transform3D(%s)" % ", ".join(number(value) for value in values)
+
+
+def wall_transform(x, y, z, yaw_deg):
+    """Положение настенной декали: её локальная ось +Y смотрит от стены в комнату (туда же, куда
+    перёд модели с поворотом yaw_deg), локальная -Z — вверх по стене."""
+    angle = math.radians(yaw_deg)
+    cos_a, sin_a = math.cos(angle), math.sin(angle)
+    # Столбцы базиса: X — вправо вдоль стены (для того, кто смотрит на стену), Y — от стены, Z — вниз.
+    axis_x = (-cos_a, 0.0, sin_a)
+    axis_y = (-sin_a, 0.0, -cos_a)
+    axis_z = (0.0, -1.0, 0.0)
+    values = (axis_x[0], axis_y[0], axis_z[0], axis_x[1], axis_y[1], axis_z[1], axis_x[2], axis_y[2], axis_z[2],
+            x, y, z)
     return "Transform3D(%s)" % ", ".join(number(value) for value in values)
 
 
@@ -575,13 +673,14 @@ class SceneWriter:
         self.body.append(line)
         self._properties(properties)
 
-    def instance(self, parent, base_name, path, x, y, z, yaw_deg, properties=None):
+    def instance(self, parent, base_name, path, x, y, z, yaw_deg, properties=None, placement=None):
+        """placement — готовый Transform3D вместо «точка и поворот вокруг Y» (настенные декали)."""
         if not os.path.exists(os.path.join(REPO_ROOT, path.replace("res://", ""))):
             raise SystemExit("нет файла %s" % path)
         name = self.unique_name(base_name)
         self.body.append("[node name=\"%s\" parent=\"%s\" instance=%s]" % (name, parent,
                 self.resource("PackedScene", path)))
-        self.body.append("transform = %s" % transform(x, y, z, yaw_deg))
+        self.body.append("transform = %s" % (placement or transform(x, y, z, yaw_deg)))
         self._properties(properties)
         return name
 
@@ -617,6 +716,14 @@ def prop(name):
 
 def item(name):
     return "res://scenes/items/%s.tscn" % name
+
+
+def light(name):
+    return "res://scenes/maps/lights/%s.tscn" % name
+
+
+def decal(name):
+    return "res://scenes/maps/decals/%s.tscn" % name
 
 
 def build_walls():
@@ -765,8 +872,11 @@ def main():
 
     scene.node("Ceilings", "Node3D", ".", group=CEILING_GROUP)
     for cell in cells:
-        name = "ceiling" if cell in PLAIN_CEILINGS else "ceiling_light"
-        scene.instance("Ceilings", pascal(name), kit(name), cell[0] * GRID, 0, cell[1] * GRID, 0)
+        if cell in DUCT_CEILINGS:
+            name, yaw = "ceiling_duct", DUCT_CEILINGS[cell]
+        else:
+            name, yaw = ("ceiling" if cell in PLAIN_CEILINGS else "ceiling_light"), 0.0
+        scene.instance("Ceilings", pascal(name), kit(name), cell[0] * GRID, 0, cell[1] * GRID, yaw)
 
     decor = [resolve(entry) for entry in DECOR]
     scene.node("Decor", "Node3D", ".")
@@ -804,10 +914,33 @@ def main():
         scene.instance("Alarms", "SabotageAlarm", item("sabotage_alarm"), x, ALARM_Y, z, SIDE_FACING[side])
 
     scene.node("Lights", "Node3D", ".")
-    for name, position, properties in LIGHTS:
-        values = {"transform": transform(*position)}
-        values.update(properties)
-        scene.node(name, "OmniLight3D", "Lights", values)
+    for name, x, z, light_color, energy in KEY_LIGHTS:
+        scene.instance("Lights", name, light("key_light"), x, KEY_Y, z, 0,
+                dict(KEY_COMMON, light_color=light_color, light_energy=energy))
+    for name, prefab, x, y, z, room, energy in ACCENT_LIGHTS:
+        values = {}
+        if room is not None:
+            values["light_color"] = color(ACCENTS[room])
+        if energy is not None:
+            values["light_energy"] = energy
+        scene.instance("Lights", name, light(prefab), x, y, z, 0, values)
+    values = {"transform": transform(*REACTOR_GLOW_POSITION)}
+    values.update(REACTOR_GLOW)
+    scene.node("ReactorGlow", "OmniLight3D", "Lights", values)
+    # Солнце одно на карту, в начале координат без поворота: направление записано в префабе.
+    scene.instance(".", "SunLight", light("sun_light"), 0, 0, 0, 0)
+
+    scene.node("Decals", "Node3D", ".")
+    for entry in DECALS:
+        if entry[0] == "wall":
+            _kind, name, cell, side, along, height = entry
+            x, z = wall_point(cell, side, along, WALL_SURFACE)
+            yaw = SIDE_FACING[side]
+            scene.instance("Decals", pascal(name), decal(name), x, height, z, yaw, None,
+                    wall_transform(x, height, z, yaw))
+        else:
+            _kind, name, x, z, yaw = entry
+            scene.instance("Decals", pascal(name), decal(name), x, 0, z, yaw)
 
     scene.node("SpawnPoints", "Node3D", ".")
     for index, (x, z, yaw) in enumerate(ring_markers(SPAWN_RADIUS, SEAT_COUNT, 0.0)):
@@ -830,8 +963,9 @@ def main():
     with open(OUTPUT, "w", encoding="utf-8", newline="\n") as handle:
         handle.write(scene.text())
     problem_count = validate(decor, gameplay, pillars)
-    print("WROTE %s: клеток %d, стен %d, колонн %d, декора %d, игровых предметов %d, замечаний %d" % (
-            OUTPUT, len(cells), len(walls), len(pillars), len(decor), len(gameplay) + len(ALARMS), problem_count))
+    print("WROTE %s: клеток %d, стен %d, колонн %d, декора %d, игровых предметов %d, света %d, декалей %d, "
+            "замечаний %d" % (OUTPUT, len(cells), len(walls), len(pillars), len(decor), len(gameplay) + len(ALARMS),
+            len(KEY_LIGHTS) + len(ACCENT_LIGHTS) + 2, len(DECALS), problem_count))
 
 
 if __name__ == "__main__":

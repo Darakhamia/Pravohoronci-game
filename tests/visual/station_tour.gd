@@ -4,18 +4,23 @@ extends Node3D
 ##
 ## Запуск: обычный — можно летать по карте (WASD, мышь, Esc — выход);
 ## с аргументом «-- --shots» сцена сохраняет снимки в res://out/ и закрывается;
-## «-- --shots --only=<часть имени>» снимает только подходящие ракурсы.
+## «-- --shots --only=<часть имени>[,<часть имени>...]» снимает только подходящие ракурсы;
+## «--frames=N» — сколько кадров ждать перед каждым снимком (по умолчанию см. ниже).
 
 const SHOTS_ARGUMENT: String = "--shots"
 const ONLY_PREFIX: String = "--only="
+const ONLY_SEPARATOR: String = ","
+const FRAMES_PREFIX: String = "--frames="
 const OUT_DIR: String = "res://out/"
 const FILE_PREFIX: String = "station_"
 const IGNORE_MARKER: String = ".gdignore"
 const HEADLESS_DISPLAY: String = "headless"
 ## Высота глаз игрока.
 const EYE: float = 1.6
-## Сколько кадров ждать перед снимком: тени, SSAO и glow успевают устояться.
-const WARMUP_FRAMES: int = 6
+## Сколько кадров ждать перед первым снимком: SDFGI, тени, SSAO и glow успевают устояться.
+const WARMUP_FRAMES: int = 48
+## Сколько кадров ждать после смены ракурса: каскады SDFGI переезжают вслед за камерой.
+const SETTLE_FRAMES: int = 26
 const WALK_SPEED: float = 5.0
 const MOUSE_SENSITIVITY: float = 0.0025
 const PITCH_LIMIT: float = 1.5
@@ -133,10 +138,12 @@ func _take_shots() -> void:
 	var marker: FileAccess = FileAccess.open(ProjectSettings.globalize_path(OUT_DIR + IGNORE_MARKER), FileAccess.WRITE)
 	if marker != null:
 		marker.close()
-	var only: String = _shot_filter()
+	var only: PackedStringArray = _shot_filter()
+	var frames_override: int = _frames_override()
+	var is_first: bool = true
 	for shot: Dictionary in SHOTS:
 		var shot_name: String = shot["name"]
-		if only != "" and not shot_name.contains(only):
+		if not _matches(shot_name, only):
 			continue
 		var camera_position: Vector3 = shot["position"]
 		var target: Vector3 = shot["target"]
@@ -144,7 +151,9 @@ func _take_shots() -> void:
 		_camera.fov = TOP_FOV if is_top else WALK_FOV
 		_camera.look_at_from_position(camera_position, target, TOP_UP if is_top else Vector3.UP)
 		_camera.set_cull_mask_value(CEILING_RENDER_LAYER, not is_top)
-		for frame: int in WARMUP_FRAMES:
+		var frames: int = WARMUP_FRAMES if is_first else SETTLE_FRAMES
+		is_first = false
+		for frame: int in (frames_override if frames_override > 0 else frames):
 			await get_tree().process_frame
 		await RenderingServer.frame_post_draw
 		var path: String = OUT_DIR + FILE_PREFIX + shot_name + ".png"
@@ -155,9 +164,26 @@ func _take_shots() -> void:
 	get_tree().quit(0)
 
 
-## «--only=<часть имени>» после «--shots» оставляет только подходящие ракурсы.
-func _shot_filter() -> String:
+## «--only=<часть имени>[,<часть имени>...]» после «--shots» оставляет только подходящие ракурсы.
+func _shot_filter() -> PackedStringArray:
 	for argument: String in OS.get_cmdline_user_args():
 		if argument.begins_with(ONLY_PREFIX):
-			return argument.trim_prefix(ONLY_PREFIX)
-	return ""
+			return argument.trim_prefix(ONLY_PREFIX).split(ONLY_SEPARATOR, false)
+	return PackedStringArray()
+
+
+func _matches(shot_name: String, only: PackedStringArray) -> bool:
+	if only.is_empty():
+		return true
+	for part: String in only:
+		if shot_name.contains(part):
+			return true
+	return false
+
+
+## «--frames=N»: сколько кадров ждать перед каждым снимком; 0 — по умолчанию.
+func _frames_override() -> int:
+	for argument: String in OS.get_cmdline_user_args():
+		if argument.begins_with(FRAMES_PREFIX):
+			return maxi(argument.trim_prefix(FRAMES_PREFIX).to_int(), 0)
+	return 0
