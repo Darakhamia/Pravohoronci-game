@@ -39,7 +39,45 @@ import_script/path=""
 materials/extract=0
 materials/extract_format=0
 materials/extract_path=""
-_subresources={}
+_subresources={
+"materials": {
+"env_cyan": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_cyan.tres",
+"use_external/path": "res://resources/materials/env_cyan.tres"
+},
+"env_deep": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_deep.tres",
+"use_external/path": "res://resources/materials/env_deep.tres"
+},
+"env_grey": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_grey.tres",
+"use_external/path": "res://resources/materials/env_grey.tres"
+},
+"env_panel": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_panel.tres",
+"use_external/path": "res://resources/materials/env_panel.tres"
+},
+"env_red": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_red.tres",
+"use_external/path": "res://resources/materials/env_red.tres"
+},
+"env_white": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_white.tres",
+"use_external/path": "res://resources/materials/env_white.tres"
+},
+"env_yellow": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_yellow.tres",
+"use_external/path": "res://resources/materials/env_yellow.tres"
+}
+}
+}
 gltf/naming_version=2
 gltf/embedded_image_handling=1
 gltf/texture_map_mode=1

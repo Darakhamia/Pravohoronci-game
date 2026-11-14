@@ -39,7 +39,60 @@ import_script/path=""
 materials/extract=0
 materials/extract_format=0
 materials/extract_path=""
-_subresources={}
+_subresources={
+"materials": {
+"env_fabric_cyan": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_fabric_cyan.tres",
+"use_external/path": "res://resources/materials/env_fabric_cyan.tres"
+},
+"env_fabric_violet": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_fabric_violet.tres",
+"use_external/path": "res://resources/materials/env_fabric_violet.tres"
+},
+"env_fabric_white": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_fabric_white.tres",
+"use_external/path": "res://resources/materials/env_fabric_white.tres"
+},
+"env_fabric_yellow": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_fabric_yellow.tres",
+"use_external/path": "res://resources/materials/env_fabric_yellow.tres"
+},
+"env_grey": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_grey.tres",
+"use_external/path": "res://resources/materials/env_grey.tres"
+},
+"env_line": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_line.tres",
+"use_external/path": "res://resources/materials/env_line.tres"
+},
+"env_red": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_red.tres",
+"use_external/path": "res://resources/materials/env_red.tres"
+},
+"env_rubber": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_rubber.tres",
+"use_external/path": "res://resources/materials/env_rubber.tres"
+},
+"env_white": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_white.tres",
+"use_external/path": "res://resources/materials/env_white.tres"
+},
+"env_yellow": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://resources/materials/env_yellow.tres",
+"use_external/path": "res://resources/materials/env_yellow.tres"
+}
+}
+}
 gltf/naming_version=2
 gltf/embedded_image_handling=1
 gltf/texture_map_mode=1

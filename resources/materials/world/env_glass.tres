@@ -1,0 +1,24 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/textures/surfaces/glass_albedo.png" id="1_tex"]
+[ext_resource type="Texture2D" path="res://assets/textures/surfaces/glass_orm.png" id="2_tex"]
+
+[resource]
+transparency = 1
+blend_mode = 4
+albedo_color = Color(0, 0, 0, 0.06)
+albedo_texture = ExtResource("1_tex")
+metallic = 0
+metallic_specular = 0.06
+roughness = 1
+roughness_texture = ExtResource("2_tex")
+roughness_texture_channel = 1
+ao_enabled = true
+ao_light_affect = 0.35
+ao_texture = ExtResource("2_tex")
+ao_texture_channel = 0
+uv1_scale = Vector3(0.8333, 0.8333, 0.8333)
+uv1_triplanar = true
+uv1_triplanar_sharpness = 4.0
+uv1_world_triplanar = true
+texture_filter = 5

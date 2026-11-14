@@ -5,7 +5,9 @@
 
 План (вид сверху, клетки 4 x 4 м, север — это -Z):
     комната А (офис, 8 x 8 м) — дверь — коридор (4 x 8 м) — дверь — комната Б (реактор, 8 x 8 м).
-Рецепт света описан в tests/visual/kit_preview.gd; здесь он просто записан узлами.
+Рецепт света описан в tests/visual/kit_preview.gd; здесь он просто записан узлами: потолочные панели,
+ключевой свет, акценты, солнце, зонды отражений (scenes/maps/lights)
+и декали (scenes/maps/decals). Всё разложено по зонам RoomA / Corridor / RoomB.
 """
 
 import math
@@ -32,7 +34,9 @@ ROOM_B = [(4, 0), (5, 0), (4, 1), (5, 1)]
 # Плитки пола с полосатой кромкой: клетка -> поворот (кромка смотрит на дверь).
 HAZARD_FLOORS = {(2, 0): WEST, (3, 0): EAST}
 # Клетки без потолочного светильника (обычная плитка потолка).
-PLAIN_CEILINGS = [(4, 1), (5, 0)]
+PLAIN_CEILINGS = []
+# Клетки с «техническим» потолком: вентиляционный короб и кабельный лоток вместо светильника.
+DUCT_CEILINGS = [(4, 1), (5, 1)]
 
 # Стены: (деталь, x, z, поворот). Стены вдоль X — без поворота, вдоль Z — 90°.
 WALLS = [
@@ -98,17 +102,57 @@ GAMEPLAY = [
     ("task_panel", 17.2, 1.3, 6 - WALL_SURFACE, NORTH),
 ]
 
-# Свет: (имя, тип, позиция, параметры). Рецепт — в tests/visual/kit_preview.gd.
+# Свет — префабы scenes/maps/lights: (узел, префаб, зона, позиция, переопределённые свойства).
+# Рецепт с числами — в tests/visual/kit_preview.gd; здесь он просто записан узлами.
+WARM = "Color(1, 0.94, 0.85, 1)"
+COOL = "Color(0.86, 0.93, 1, 1)"
 LIGHTS = [
-    ("RoomAKey", "OmniLight3D", (2, 2.7, 2), dict(light_color="Color(1, 0.95, 0.86, 1)", light_energy=1.5,
-            omni_range=9.5, omni_attenuation=1.0, shadow_enabled="true", shadow_bias=0.06)),
-    ("CorridorKey", "OmniLight3D", (10, 2.6, 0), dict(light_color="Color(0.86, 0.93, 1, 1)", light_energy=1.2,
-            omni_range=7.5, omni_attenuation=1.0, shadow_enabled="true", shadow_bias=0.06)),
-    ("RoomBKey", "OmniLight3D", (18, 2.95, 3.6), dict(light_color="Color(0.86, 0.93, 1, 1)", light_energy=1.2,
-            omni_range=9.0, omni_attenuation=1.0, shadow_enabled="true", shadow_bias=0.06)),
-    ("ReactorGlow", "OmniLight3D", (18, 1.35, 1.6), dict(light_color="Color(1, 0.62, 0.2, 1)", light_energy=3.0,
-            omni_range=3.5, omni_attenuation=0.8)),
+    ("KeyLight", "key_light", "RoomA", (2, 2.6, 2), {}),
+    ("DeskLamp", "accent_desk_lamp", "RoomA", (5.1, 1.35, -1.2), {}),
+    ("KeyLight", "key_light", "Corridor", (10, 2.6, 0), dict(light_color=COOL, light_energy=1.6)),
+    ("ArchStrip", "accent_strip_cool", "Corridor", (10, 1.3, -1.1), {}),
+    ("ArchStrip", "accent_strip_cool", "Corridor", (10, 1.3, 1.1), {}),
+    ("KeyLight", "key_light", "RoomB", (18, 2.6, 4.2), dict(light_color=COOL, light_energy=2.4)),
+    ("Emergency", "accent_emergency", "RoomB", (14.6, 2.75, 0), {}),
 ]
+# Свечение реактора: единственный цветной источник с тенями — прутья клетки ядра ложатся тенями на стены.
+REACTOR_GLOW = ("ReactorGlow", "OmniLight3D", "RoomB", (18, 1.35, 1.6), dict(light_color="Color(1, 0.62, 0.2, 1)",
+        light_energy=5.0, light_size=0.12, light_volumetric_fog_energy=1.5, omni_range=7.0, omni_attenuation=1.8,
+        shadow_enabled="true", shadow_bias=0.04))
+SUN = ("SunLight", "sun_light", (0, 0, 0))
+# Зонды отражений: (зона, центр, размер). Размер — помещение по осям стен плюс 0,4 м: у самой границы
+# зонд плавно гаснет (blend_distance 0,2 м), а стены и пол должны остаться внутри.
+PROBE_MARGIN = 0.4
+PROBES = [
+    ("RoomA", (2, 1.6, 2), (8 + PROBE_MARGIN, 3.2 + PROBE_MARGIN, 8 + PROBE_MARGIN)),
+    ("Corridor", (10, 1.6, 0), (8 + PROBE_MARGIN, 3.2 + PROBE_MARGIN, 4 + PROBE_MARGIN)),
+    ("RoomB", (18, 1.6, 2), (8 + PROBE_MARGIN, 3.2 + PROBE_MARGIN, 8 + PROBE_MARGIN)),
+]
+# Декали scenes/maps/decals: (префаб, x, y, z, поворот вокруг Y, на стене ли). На полу декаль лежит как есть,
+# на стене её поворачивают лицом от стены: локальная ось +Y декали смотрит в комнату.
+DECALS = [
+    # офис
+    ("label_meeting", 5.86, 2.05, 2.9, WEST, True), ("stain_coffee", 3.3, 0, 3.0, 20.0, False),
+    ("scuffs_floor", 4.6, 0, 0.3, 70.0, False), ("number_01", -1.86, 2.1, 0.4, EAST, True),
+    # коридор
+    ("arrow_floor", 8.6, 0, 0.0, EAST, False), ("arrow_floor", 11.6, 0, 0.0, EAST, False),
+    ("label_reactor", 12.1, 2.0, 1.86, NORTH, True), ("leak_wall", 12.6, 1.6, -1.86, SOUTH, True),
+    ("stain_oil", 12.5, 0, -1.2, 0.0, False), ("scuffs_floor", 9.4, 0, 0.5, 10.0, False),
+    ("hazard_stripe", 13.4, 0, 0.0, WEST, False),
+    # реакторная
+    ("number_02", 14.14, 2.1, 3.2, WEST, True), ("hazard_ring", 18, 0, 1.6, 0.0, False),
+    ("stain_oil", 20.6, 0, 3.6, 130.0, False), ("leak_wall", 21.86, 1.7, 3.3, EAST, True),
+    ("label_danger", 18.9, 2.0, 5.86, NORTH, True), ("scuffs_floor", 16.2, 0, 3.4, 100.0, False),
+]
+
+ZONES = ("RoomA", "Corridor", "RoomB")
+
+
+def zone_of(x):
+    """Зона по координате X: стены между зонами стоят на x = 6 и x = 14."""
+    if x < 6:
+        return "RoomA"
+    return "Corridor" if x < 14 else "RoomB"
 
 
 def number(value):
@@ -120,6 +164,20 @@ def transform(x, y, z, yaw_deg=0.0):
     angle = math.radians(yaw_deg)
     cos_a, sin_a = math.cos(angle), math.sin(angle)
     values = (cos_a, 0.0, sin_a, 0.0, 1.0, 0.0, -sin_a, 0.0, cos_a, x, y, z)
+    return "Transform3D(%s)" % ", ".join(number(value) for value in values)
+
+
+def wall_transform(x, y, z, yaw_deg):
+    """Положение настенной декали: её локальная ось +Y смотрит от стены в комнату (туда же, куда перёд
+    модели с поворотом yaw_deg), локальная -Z — вверх по стене."""
+    angle = math.radians(yaw_deg)
+    cos_a, sin_a = math.cos(angle), math.sin(angle)
+    # Столбцы базиса: X — вправо вдоль стены (для того, кто смотрит на стену), Y — от стены, Z — вниз.
+    axis_x = (-cos_a, 0.0, sin_a)
+    axis_y = (-sin_a, 0.0, -cos_a)
+    axis_z = (0.0, -1.0, 0.0)
+    values = (axis_x[0], axis_y[0], axis_z[0], axis_x[1], axis_y[1], axis_z[1], axis_x[2], axis_y[2], axis_z[2],
+            x, y, z)
     return "Transform3D(%s)" % ", ".join(number(value) for value in values)
 
 
@@ -138,6 +196,7 @@ class SceneWriter:
         return "ExtResource(\"%s\")" % self.resources[path]
 
     def unique_name(self, base):
+        """Имя узла, уникальное внутри родителя (base — «родитель/имя»)."""
         count = self.names.get(base, 0) + 1
         self.names[base] = count
         return base if count == 1 else "%s%d" % (base, count)
@@ -149,14 +208,16 @@ class SceneWriter:
             self.body.append("%s = %s" % (key, value if isinstance(value, str) else number(value)))
         self.body.append("")
 
-    def instance(self, parent, base_name, path, x, y, z, yaw_deg):
+    def instance(self, parent, base_name, path, x, y, z, yaw_deg, properties=None, basis=None):
         if not os.path.exists(os.path.join(REPO_ROOT, path.replace("res://", ""))):
             print("ПРОПУЩЕНО: нет файла", path)
             return
-        name = self.unique_name(base_name)
+        name = self.unique_name(parent + "/" + base_name).split("/")[-1]
         self.body.append("[node name=\"%s\" parent=\"%s\" instance=%s]" % (name, parent,
                 self.resource("PackedScene", path)))
-        self.body.append("transform = %s" % transform(x, y, z, yaw_deg))
+        self.body.append("transform = %s" % (basis or transform(x, y, z, yaw_deg)))
+        for key, value in (properties or {}).items():
+            self.body.append("%s = %s" % (key, value if isinstance(value, str) else number(value)))
         self.body.append("")
 
     def text(self):
@@ -190,24 +251,40 @@ def main():
     for x, z in PILLARS:
         scene.instance("Structure", "Pillar", kit("pillar"), x, 0, z, 0)
 
-    scene.node("Ceilings", "Node3D", ".")
+    # Потолок, реквизит и свет разложены по зонам: снимок «тёмная комната» гасит одну зону целиком.
+    for group in ("Ceilings", "Decor", "Gameplay", "Lights", "Probes", "Decals"):
+        scene.node(group, "Node3D", ".")
+        for zone in ZONES:
+            scene.node(zone, "Node3D", group)
+
     for cell in ROOM_A + CORRIDOR + ROOM_B:
-        name = "ceiling" if cell in PLAIN_CEILINGS else "ceiling_light"
-        scene.instance("Ceilings", pascal(name), kit(name), cell[0] * GRID, 0, cell[1] * GRID, 0)
+        name = "ceiling" if cell in PLAIN_CEILINGS else ("ceiling_duct" if cell in DUCT_CEILINGS else "ceiling_light")
+        x = cell[0] * GRID
+        scene.instance("Ceilings/" + zone_of(x), pascal(name), kit(name), x, 0, cell[1] * GRID, 0)
 
-    scene.node("Decor", "Node3D", ".")
     for name, x, y, z, yaw in DECOR:
-        scene.instance("Decor", pascal(name), "res://scenes/maps/props/%s.tscn" % name, x, y, z, yaw)
+        scene.instance("Decor/" + zone_of(x), pascal(name), "res://scenes/maps/props/%s.tscn" % name, x, y, z, yaw)
 
-    scene.node("Gameplay", "Node3D", ".")
     for name, x, y, z, yaw in GAMEPLAY:
-        scene.instance("Gameplay", pascal(name), "res://assets/models/props/%s.glb" % name, x, y, z, yaw)
+        scene.instance("Gameplay/" + zone_of(x), pascal(name), "res://assets/models/props/%s.glb" % name, x, y, z, yaw)
 
-    scene.node("Lights", "Node3D", ".")
-    for name, kind, position, properties in LIGHTS:
-        values = {"transform": transform(*position)}
-        values.update(properties)
-        scene.node(name, kind, "Lights", values)
+    for name, prefab, zone, position, properties in LIGHTS:
+        scene.instance("Lights/" + zone, name, "res://scenes/maps/lights/%s.tscn" % prefab, position[0], position[1],
+                position[2], 0, dict(properties))
+    name, kind, zone, position, properties = REACTOR_GLOW
+    values = {"transform": transform(*position)}
+    values.update(properties)
+    scene.node(name, kind, "Lights/" + zone, values)
+    scene.instance(".", SUN[0], "res://scenes/maps/lights/%s.tscn" % SUN[1], SUN[2][0], SUN[2][1], SUN[2][2], 0)
+
+    for zone, center, size in PROBES:
+        scene.instance("Probes/" + zone, "Probe", "res://scenes/maps/lights/reflection_probe_room.tscn", center[0],
+                center[1], center[2], 0, {"size": "Vector3(%s, %s, %s)" % tuple(number(v) for v in size)})
+
+    for name, x, y, z, yaw, on_wall in DECALS:
+        basis = wall_transform(x, y, z, yaw) if on_wall else None
+        scene.instance("Decals/" + zone_of(x), pascal(name), "res://scenes/maps/decals/%s.tscn" % name, x, y, z, yaw,
+                None, basis)
 
     scene.node("Camera", "Camera3D", ".", {"transform": transform(2, 1.6, 4.6), "fov": 75.0})
 

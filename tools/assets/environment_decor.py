@@ -8,8 +8,8 @@
 
 import math
 
-from environment_lib import (Frame, Model, ball, bar, box, cone, cyl, lathe, pill, prism, ring_prism,
-        rounded_rect_points, torus, tube)
+from environment_lib import (Frame, Model, ball, bar, bolt, box, cone, cushion, cushion_rim, cyl, lathe, pill, prism,
+        ring_prism, rounded_rect_points, shell, torus, tube)
 
 
 def _polar(radius, angle_deg, z=0.0):
@@ -18,42 +18,95 @@ def _polar(radius, angle_deg, z=0.0):
 
 
 def mug_parts(origin, material):
-    """Кружка с ручкой, дно в точке origin."""
+    """Кружка с ручкой и недопитым кофе, дно в точке origin."""
     x, y, z = origin
-    return [lathe([(0.0, z), (0.042, z), (0.05, z + 0.10), (0.036, z + 0.10), (0.034, z + 0.085), (0.0, z + 0.085)],
-            (x, y, 0.0), material, segments=16),
-            torus(0.028, 0.009, (x + 0.058, y, z + 0.052), material, axis="y", major_segments=12, minor_segments=6)]
+    return [lathe([(0.0, z), (0.038, z), (0.043, z + 0.006), (0.047, z + 0.094), (0.0445, z + 0.099), (0.041, z + 0.094),
+            (0.039, z + 0.012), (0.0, z + 0.012)], (x, y, 0.0), material, segments=20),
+            cyl(0.040, 0.004, (x, y, z + 0.078), "wood", vertices=20),
+            tube([(x + 0.045, y, z + 0.078), (x + 0.070, y, z + 0.073), (x + 0.078, y, z + 0.050),
+            (x + 0.067, y, z + 0.028), (x + 0.043, y, z + 0.024)], 0.0065, material, steps=3)]
+
+
+def _caster(model, x, y, yaw_deg):
+    """Сдвоенный ролик кресла под точкой (x, y)."""
+    yaw = math.radians(yaw_deg)
+    model.add(cyl(0.009, 0.04, (x, y, 0.068), "grey", vertices=8))
+    model.add(box((0.034, 0.05, 0.03), (x, y, 0.044), "panel", bevel=0.01, rot=(0.0, 0.0, yaw)))
+    for sign in (-1.0, 1.0):
+        center = (x + sign * 0.017 * math.cos(yaw), y + sign * 0.017 * math.sin(yaw), 0.027)
+        model.add(cyl(0.027, 0.014, center, "rubber", rot=(0.0, math.pi / 2.0, yaw), bevel=0.004, vertices=14))
+
+
+def _piping(model, size, puff, frame, material="panel", radius=0.005):
+    """Кант по кромке подушки cushion(size, puff): frame — её положение и поворот."""
+    points = [frame.at(*point) for point in cushion_rim(size, puff)]
+    model.add(tube(points, radius, material, smooth=False))
 
 
 def build_desk():
-    """Офисный стол с монитором (на экране падающий график), клавиатурой, кружкой и резиновой уткой."""
+    """Офисный стол: столешница из пластика на стальной раме, тумба, монитор (на экране падающий график),
+    клавиатура, мышь, кружка и резиновая утка."""
     model = Model("desk")
-    model.add(box((1.50, 0.75, 0.06), (0.0, 0.0, 0.72), "white", bevel=0.025))
+    model.add(box((1.50, 0.75, 0.036), (0.0, 0.0, 0.732), "laminate", bevel=0.005))
+    model.add(bar((1.46, 0.71, 0.022), (0.0, 0.0, 0.703), "line", axis="z", bevel=0.01))
+    # Рама: две стальные «П» с опорами на регулируемых ножках.
     for sign in (-1.0, 1.0):
-        model.add(box((0.07, 0.66, 0.70), (sign * 0.68, 0.0, 0.35), "line", bevel=0.025))
-    model.add(box((1.30, 0.03, 0.42), (0.0, -0.30, 0.47), "line", bevel=0.01))
-    model.add(box((0.42, 0.60, 0.56), (0.42, 0.0, 0.41), "grey", bevel=0.03))
+        x = sign * 0.69
+        for y in (-0.27, 0.27):
+            model.add(bar((0.045, 0.045, 0.66), (x, y, 0.365), "grey", axis="z", bevel=0.006))
+            model.add(cyl(0.022, 0.014, (x, y, 0.007), "rubber", vertices=10))
+        model.add(bar((0.05, 0.66, 0.035), (x, 0.0, 0.035), "grey", axis="y", bevel=0.006))
+        model.add(bar((0.05, 0.60, 0.035), (x, 0.0, 0.675), "grey", axis="y", bevel=0.006))
+        for y in (-0.27, 0.27):
+            model.add(bolt((x + sign * 0.026, y, 0.675), axis="x", radius=0.008))
+    model.add(box((1.33, 0.02, 0.36), (0.0, -0.30, 0.49), "line", bevel=0.006))
+    # Тумба с двумя ящиками.
+    model.add(box((0.42, 0.60, 0.56), (0.42, 0.0, 0.41), "grey", bevel=0.012))
     for z in (0.55, 0.30):
-        model.add(box((0.36, 0.03, 0.22), (0.42, 0.30, z), "white", bevel=0.012))
-        model.add(box((0.14, 0.035, 0.035), (0.42, 0.325, z + 0.04), "yellow", bevel=0.012))
-    # Монитор.
-    model.add(cyl(0.13, 0.02, (-0.20, -0.14, 0.76), "panel", bevel=0.008))
-    model.add(box((0.06, 0.04, 0.22), (-0.20, -0.17, 0.86), "panel", bevel=0.012))
-    model.add(box((0.68, 0.05, 0.42), (-0.20, -0.14, 1.11), "panel", bevel=0.03))
-    model.add(box((0.61, 0.012, 0.35), (-0.20, -0.112, 1.11), "screen", bevel=0.006))
+        model.add(box((0.385, 0.018, 0.235), (0.42, 0.303, z), "white", bevel=0.006))
+        model.add(bar((0.16, 0.012, 0.012), (0.42, 0.335, z + 0.07), "chrome", bevel=0.004))
+        for dx in (-0.065, 0.065):
+            model.add(cyl(0.005, 0.024, (0.42 + dx, 0.323, z + 0.07), "chrome", axis="y", vertices=8))
+    model.add(bolt((0.575, 0.313, 0.64), axis="y", radius=0.009, material="chrome"))
+    for x in (0.25, 0.59):
+        for y in (-0.25, 0.25):
+            model.add(cyl(0.02, 0.13, (x, y, 0.065), "rubber", vertices=10))
+    # Монитор: подставка, шарнир, корпус с рамкой.
+    screen_x, screen_z = -0.20, 1.11
+    model.add(box((0.27, 0.19, 0.012), (screen_x, -0.15, 0.756), "panel", bevel=0.005))
+    model.add(box((0.055, 0.022, 0.25), (screen_x, -0.185, 0.885), "panel", bevel=0.008))
+    model.add(cyl(0.02, 0.10, (screen_x, -0.176, 1.01), "grey", axis="x", vertices=12))
+    model.add(box((0.68, 0.028, 0.42), (screen_x, -0.142, screen_z), "panel", bevel=0.008))
+    model.add(box((0.40, 0.03, 0.24), (screen_x, -0.165, screen_z - 0.02), "panel", bevel=0.012))
+    outer = rounded_rect_points(0.68, 0.42, 0.012, center=(screen_x, screen_z))
+    inner = rounded_rect_points(0.635, 0.36, 0.004, center=(screen_x, screen_z + 0.012))
+    model.add(ring_prism(outer, inner, 0.008, "panel", plane="xz", offset=-0.13, bevel=0.002))
+    model.add(bar((0.64, 0.004, 0.365), (screen_x, -0.127, screen_z + 0.012), "screen", axis="y", bevel=0.0))
+    model.add(cyl(0.004, 0.003, (screen_x + 0.30, -0.1215, screen_z - 0.19), "glow_green", axis="y", vertices=8))
+    model.add(cyl(0.009, 0.002, (screen_x, -0.1215, screen_z - 0.19), "chrome", axis="y", vertices=10))
     for index, (height, material) in enumerate(((0.22, "glow_green"), (0.15, "glow_yellow"), (0.09, "glow_orange"),
             (0.04, "glow_red"))):
-        model.add(box((0.075, 0.01, height), (-0.01 - 0.125 * index, -0.104, 0.97 + height / 2.0), material, bevel=0.004))
-    # Клавиатура, мышь, кружка, утка, бумаги.
-    model.add(box((0.42, 0.15, 0.022), (-0.20, 0.14, 0.761), "panel", bevel=0.008))
-    model.add(ball(0.035, (0.11, 0.15, 0.765), "white", scale=(0.8, 1.25, 0.6)))
+        model.add(bar((0.075, 0.003, height), (-0.01 - 0.125 * index, -0.1245, 0.98 + height / 2.0), material, axis="y",
+                bevel=0.0))
+    # Клавиатура с клавишами, коврик и мышь.
+    model.add(box((0.44, 0.15, 0.014), (-0.20, 0.14, 0.757), "rubber", bevel=0.005))
+    for row in range(5):
+        for column in range(14):
+            if row == 4 and 3 < column < 10:
+                continue
+            model.add(bar((0.024, 0.02, 0.006), (-0.397 + 0.0303 * column, 0.196 - 0.028 * row, 0.767), "panel", axis="z",
+                    bevel=0.0))
+    model.add(bar((0.176, 0.02, 0.006), (-0.2, 0.084, 0.767), "panel", axis="z", bevel=0.0))
+    model.add(box((0.24, 0.20, 0.004), (0.13, 0.14, 0.752), "rubber", bevel=0.0015))
+    model.add(ball(0.05, (0.11, 0.15, 0.757), "panel", scale=(0.62, 1.0, 0.42)))
+    model.add(cyl(0.006, 0.006, (0.11, 0.176, 0.776), "grey", axis="x", vertices=10))
     model.extend(mug_parts((0.50, 0.16, 0.75), "yellow"))
     duck = (0.50, -0.17, 0.75)
     model.add(ball(0.06, (duck[0], duck[1], duck[2] + 0.05), "yellow", scale=(1.0, 1.25, 0.85)))
     model.add(ball(0.042, (duck[0], duck[1] + 0.045, duck[2] + 0.115), "yellow"))
     model.add(cone(0.02, 0.006, 0.04, (duck[0], duck[1] + 0.095, duck[2] + 0.11), "orange", axis="y", vertices=10))
     for sign in (-1.0, 1.0):
-        model.add(ball(0.008, (duck[0] + sign * 0.022, duck[1] + 0.078, duck[2] + 0.128), "deep"))
+        model.add(ball(0.008, (duck[0] + sign * 0.022, duck[1] + 0.078, duck[2] + 0.128), "void"))
     for index, turn in enumerate((6.0, -12.0)):
         model.add(box((0.21, 0.30, 0.004), (-0.56, 0.12, 0.753 + 0.004 * index), "white", bevel=0.0,
                 rot=(0.0, 0.0, math.radians(turn))))
@@ -61,23 +114,43 @@ def build_desk():
 
 
 def build_chair():
-    """Офисное кресло на пяти лучах. Перёд (+Y) — куда смотрит сидящий."""
+    """Офисное кресло: литая крестовина на роликах, газлифт, мягкое сиденье и спинка с кантом, подлокотники.
+    Перёд (+Y) — куда смотрит сидящий."""
     model = Model("chair")
+    model.add(cyl(0.05, 0.075, (0.0, 0.0, 0.105), "grey", bevel=0.012, vertices=16))
     for index in range(5):
         angle = 72.0 * index + 90.0
-        x, y, _z = _polar(0.15, angle)
-        model.add(box((0.30, 0.06, 0.045), (x, y, 0.075), "panel", bevel=0.02, rot=(0.0, 0.0, math.radians(angle))))
-        x, y, _z = _polar(0.29, angle)
-        model.add(ball(0.036, (x, y, 0.036), "deep"))
-    model.add(cyl(0.035, 0.32, (0.0, 0.0, 0.25), "grey", vertices=12))
-    model.add(cyl(0.08, 0.05, (0.0, 0.0, 0.405), "panel", bevel=0.012, vertices=16))
-    model.add(box((0.50, 0.48, 0.11), (0.0, 0.02, 0.475), "violet", bevel=0.05, segments=3))
+        x, y, _z = _polar(0.16, angle)
+        model.add(box((0.27, 0.048, 0.03), (x, y, 0.094), "grey", bevel=0.011,
+                rot=(0.0, math.radians(7.0), math.radians(angle))))
+        x, y, _z = _polar(0.292, angle)
+        _caster(model, x, y, angle + 55.0)
+    model.add(cyl(0.034, 0.13, (0.0, 0.0, 0.19), "panel", bevel=0.006, vertices=16))
+    model.add(cyl(0.022, 0.20, (0.0, 0.0, 0.30), "chrome", vertices=14))
+    model.add(box((0.20, 0.25, 0.045), (0.0, 0.0, 0.405), "panel", bevel=0.012))
+    model.add(tube([(0.08, 0.03, 0.40), (0.20, 0.04, 0.395), (0.265, 0.04, 0.385)], 0.007, "panel"))
+    model.add(box((0.05, 0.03, 0.008), (0.285, 0.04, 0.382), "panel", bevel=0.003))
+    # Сиденье: пластиковая чаша и подушка с кантом.
+    model.add(box((0.47, 0.45, 0.04), (0.0, 0.02, 0.445), "panel", bevel=0.015))
+    seat_size, seat_puff = (0.50, 0.48, 0.12), 0.72
+    seat_center = (0.0, 0.02, 0.497)
+    model.add(cushion(seat_size, seat_center, "violet", puff=seat_puff, dent=0.12))
+    _piping(model, seat_size, seat_puff, Frame(seat_center, (0.0, 0.0, 0.0)))
+    # Спинка: жёсткая раковина сзади, подушка спереди, стойка от механизма.
     lean = math.radians(8.0)
-    model.add(box((0.08, 0.05, 0.36), (0.0, -0.245, 0.62), "panel", bevel=0.02, rot=(lean, 0.0, 0.0)))
-    model.add(box((0.48, 0.10, 0.50), (0.0, -0.285, 0.90), "violet", bevel=0.05, segments=3, rot=(lean, 0.0, 0.0)))
+    back = Frame((0.0, -0.262, 0.90), (lean, 0.0, 0.0))
+    model.add(box((0.45, 0.03, 0.49), back.at(0.0, -0.022, 0.0), "panel", bevel=0.012, rot=back.rot))
+    back_size, back_puff = (0.47, 0.50, 0.10), 0.72
+    back_rot = (lean - math.pi / 2.0, 0.0, 0.0)
+    back_center = back.at(0.0, 0.022, 0.0)
+    model.add(cushion(back_size, back_center, "violet", puff=back_puff, rot=back_rot))
+    _piping(model, back_size, back_puff, Frame(back_center, back_rot))
+    model.add(tube([(0.0, -0.09, 0.405), (0.0, -0.21, 0.41), (0.0, -0.268, 0.47), (0.0, -0.285, 0.62),
+            (0.0, -0.298, 0.80)], 0.02, "panel"))
     for sign in (-1.0, 1.0):
-        model.add(box((0.05, 0.28, 0.045), (sign * 0.275, 0.0, 0.68), "panel", bevel=0.018))
-        model.add(box((0.04, 0.05, 0.20), (sign * 0.275, -0.06, 0.58), "panel", bevel=0.015))
+        model.add(box((0.07, 0.05, 0.02), (sign * 0.245, -0.04, 0.452), "panel", bevel=0.008))
+        model.add(box((0.03, 0.045, 0.20), (sign * 0.268, -0.04, 0.55), "panel", bevel=0.01))
+        model.add(box((0.062, 0.27, 0.03), (sign * 0.272, 0.0, 0.662), "rubber", bevel=0.013))
     return model, None, [((0.58, 0.58, 1.14), (0.0, -0.03, 0.57))]
 
 
@@ -98,72 +171,157 @@ def build_water_cooler():
     model.add(ball(0.045, (0.02, 0.03, 1.31), "orange", scale=(1.5, 0.75, 1.0)))
     model.add(prism([(-0.05, 1.31), (-0.11, 1.36), (-0.10, 1.31), (-0.11, 1.26)], 0.012, "orange", plane="xz", offset=0.024))
     model.add(ball(0.016, (0.062, 0.058, 1.322), "white"))
-    model.add(ball(0.008, (0.068, 0.070, 1.322), "deep"))
+    model.add(ball(0.008, (0.068, 0.070, 1.322), "void"))
     model.add(cyl(0.048, 0.30, (0.238, 0.04, 0.78), "grey", bevel=0.012, vertices=16))
     return model, None, [((0.42, 0.42, 1.52), (0.0, 0.0, 0.76))]
 
 
 def build_vending_machine():
-    """Торговый автомат: светящаяся витрина с банками, одна банка застряла."""
+    """Торговый автомат: утопленная витрина с полками и банками (одна застряла), панель оплаты, лоток выдачи."""
     model = Model("vending_machine")
-    model.add(box((1.00, 0.10, 1.90), (0.0, -0.30, 0.95), "red", bevel=0.04))
-    model.add(box((0.07, 0.70, 1.90), (0.465, 0.0, 0.95), "red", bevel=0.03))
-    model.add(box((0.30, 0.70, 1.90), (-0.35, 0.0, 0.95), "red", bevel=0.04))
-    model.add(box((1.00, 0.70, 0.22), (0.0, 0.0, 1.79), "red", bevel=0.04))
-    model.add(box((1.00, 0.70, 0.56), (0.0, 0.0, 0.28), "red", bevel=0.04))
-    model.add(box((1.04, 0.74, 0.08), (0.0, 0.0, 0.04), "panel", bevel=0.03))
-    window_x = 0.115
-    model.add(box((0.64, 0.02, 1.14), (window_x, -0.24, 1.12), "lamp_soft", bevel=0.0))
+    model.add(box((1.00, 0.10, 1.83), (0.0, -0.30, 0.985), "red", bevel=0.015))
+    model.add(box((0.07, 0.70, 1.83), (0.465, 0.0, 0.985), "red", bevel=0.015))
+    model.add(box((0.30, 0.70, 1.83), (-0.35, 0.0, 0.985), "red", bevel=0.015))
+    model.add(box((1.00, 0.70, 0.22), (0.0, 0.0, 1.79), "red", bevel=0.015))
+    model.add(box((1.00, 0.70, 0.49), (0.0, 0.0, 0.315), "red", bevel=0.015))
+    # Цоколь утоплен, автомат стоит на регулируемых ножках.
+    model.add(box((0.94, 0.64, 0.09), (0.0, 0.0, 0.047), "rubber", bevel=0.008))
+    for sx in (-1.0, 1.0):
+        for sy in (-1.0, 1.0):
+            model.add(cyl(0.032, 0.02, (sx * 0.43, sy * 0.29, 0.01), "grey", vertices=10))
+    window_x, window_z = 0.115, 1.12
+    model.add(box((0.64, 0.02, 1.14), (window_x, -0.24, window_z), "lamp_soft", bevel=0.0))
+    for sign in (-1.0, 1.0):
+        model.add(bar((0.012, 0.55, 1.14), (window_x + sign * 0.314, 0.05, window_z), "white", axis="z", bevel=0.0))
     cans = ("cyan", "yellow", "green", "orange", "violet", "white")
     for row in range(4):
         z = 0.58 + 0.285 * row
-        model.add(box((0.64, 0.52, 0.03), (window_x, 0.02, z), "grey", bevel=0.008))
+        model.add(box((0.616, 0.52, 0.024), (window_x, 0.02, z), "grey", bevel=0.004))
+        model.add(bar((0.616, 0.008, 0.03), (window_x, 0.284, z + 0.002), "white", bevel=0.002))
         for column in range(4):
+            x = window_x - 0.225 + 0.15 * column
+            model.add(bar((0.05, 0.004, 0.018), (x, 0.29, z + 0.002), "yellow" if (row + column) % 2 else "cyan",
+                    axis="y", bevel=0.0))
+            if column:
+                model.add(bar((0.004, 0.40, 0.05), (x - 0.075, 0.07, z + 0.037), "grey", axis="y", bevel=0.0))
             if row == 2 and column == 1:
                 continue
             material = cans[(row * 3 + column) % len(cans)]
-            model.add(cyl(0.055, 0.15, (window_x - 0.225 + 0.15 * column, 0.14, z + 0.09), material, bevel=0.012,
-                    vertices=14))
+            for depth_index in range(2):
+                y = 0.19 - 0.13 * depth_index
+                model.add(cyl(0.05, 0.14, (x, y, z + 0.083), material, bevel=0.008, vertices=14))
+                model.add(cyl(0.043, 0.006, (x, y, z + 0.155), "chrome", vertices=14))
     # Застрявшая банка.
-    model.add(cyl(0.055, 0.15, (window_x - 0.05, 0.24, 1.02), "red", bevel=0.012, vertices=14,
+    model.add(cyl(0.05, 0.14, (window_x - 0.05, 0.25, 1.02), "red", bevel=0.008, vertices=14,
             rot=(math.radians(20.0), math.radians(55.0), 0.0)))
-    model.add(box((0.64, 0.02, 1.14), (window_x, 0.325, 1.12), "glass", bevel=0.0))
-    # Колонка управления.
-    model.add(box((0.20, 0.02, 0.12), (-0.35, 0.352, 1.45), "screen", bevel=0.006))
-    for row in range(3):
-        for column in range(2):
-            model.add(box((0.07, 0.03, 0.06), (-0.39 + 0.085 * column, 0.352, 1.26 - 0.08 * row), "white", bevel=0.012))
-    model.add(box((0.10, 0.03, 0.025), (-0.35, 0.352, 0.98), "deep", bevel=0.006))
-    model.add(cyl(0.04, 0.04, (-0.35, 0.352, 0.86), "glow_green", axis="y", bevel=0.01, vertices=16))
-    model.add(box((0.56, 0.03, 0.20), (window_x, 0.345, 0.30), "deep", bevel=0.02))
-    model.add(box((0.50, 0.03, 0.06), (window_x, 0.36, 0.385), "grey", bevel=0.015))
-    model.add(box((0.92, 0.03, 0.13), (0.0, 0.35, 1.795), "glow_yellow", bevel=0.02))
+    # Стекло утоплено в резиновый уплотнитель.
+    model.add(bar((0.62, 0.006, 1.12), (window_x, 0.338, window_z), "glass", axis="y", bevel=0.0))
+    outer = rounded_rect_points(0.69, 1.19, 0.035, center=(window_x, window_z))
+    inner = rounded_rect_points(0.60, 1.10, 0.02, center=(window_x, window_z))
+    model.add(ring_prism(outer, inner, 0.032, "rubber", plane="xz", offset=0.335, bevel=0.004))
+    # Панель оплаты: экран, клавиши, монетоприёмник, купюроприёмник, картридер, возврат монет.
+    panel_x, face = -0.35, 0.358
+    model.add(box((0.25, 0.014, 0.84), (panel_x, 0.351, 1.21), "panel", bevel=0.004))
+    model.add(box((0.19, 0.006, 0.11), (panel_x, face + 0.002, 1.52), "screen", bevel=0.002))
+    for row in range(4):
+        for column in range(3):
+            material = "green" if (row, column) == (3, 2) else ("red" if (row, column) == (3, 0) else "white")
+            model.add(box((0.046, 0.012, 0.038), (panel_x - 0.056 + 0.056 * column, face + 0.004, 1.395 - 0.048 * row),
+                    material, bevel=0.004))
+    model.add(box((0.075, 0.008, 0.11), (panel_x - 0.07, face + 0.003, 1.13), "chrome", bevel=0.003))
+    model.add(bar((0.008, 0.004, 0.05), (panel_x - 0.07, face + 0.008, 1.135), "rubber", axis="y", bevel=0.0))
+    model.add(box((0.12, 0.022, 0.075), (panel_x + 0.045, face + 0.008, 1.13), "rubber", bevel=0.006))
+    model.add(bar((0.09, 0.004, 0.008), (panel_x + 0.045, face + 0.02, 1.13), "glow_green", axis="y", bevel=0.0))
+    model.add(box((0.10, 0.03, 0.13), (panel_x, face + 0.012, 0.985), "line", bevel=0.008))
+    model.add(bar((0.07, 0.004, 0.006), (panel_x, face + 0.028, 0.955), "rubber", axis="y", bevel=0.0))
+    model.add(box((0.06, 0.004, 0.04), (panel_x, face + 0.028, 1.01), "screen", bevel=0.0015))
+    model.add(box((0.11, 0.012, 0.085), (panel_x, face, 0.86), "rubber", bevel=0.004))
+    model.add(bar((0.11, 0.016, 0.012), (panel_x, face + 0.004, 0.822), "chrome", bevel=0.004))
+    model.add(cyl(0.016, 0.012, (0.467, 0.352, 1.0), "chrome", axis="y", bevel=0.003, vertices=12))
+    for z in (0.42, 0.95, 1.5):
+        model.add(cyl(0.012, 0.09, (0.494, 0.345, z), "grey", vertices=8))
+    # Лоток выдачи с качающейся заслонкой.
+    model.add(box((0.60, 0.02, 0.25), (window_x, 0.346, 0.32), "rubber", bevel=0.006))
+    model.add(box((0.52, 0.012, 0.17), (window_x, 0.356, 0.30), "grey", bevel=0.004, rot=(math.radians(-7.0), 0.0, 0.0)))
+    model.add(bar((0.30, 0.008, 0.03), (window_x, 0.372, 0.355), "yellow", bevel=0.003))
+    model.add(cyl(0.04, 0.03, (panel_x, 0.352, 0.40), "glow_green", axis="y", bevel=0.008, vertices=16))
+    # Светящаяся вывеска в рамке, решётки охлаждения на боках.
+    model.add(box((0.90, 0.03, 0.12), (0.0, 0.35, 1.795), "glow_yellow", bevel=0.01))
+    outer = rounded_rect_points(0.95, 0.17, 0.03, center=(0.0, 1.795))
+    inner = rounded_rect_points(0.89, 0.11, 0.012, center=(0.0, 1.795))
+    model.add(ring_prism(outer, inner, 0.022, "panel", plane="xz", offset=0.348, bevel=0.004))
+    for sign in (-1.0, 1.0):
+        for index in range(7):
+            model.add(bar((0.008, 0.36, 0.014), (sign * 0.5, 0.0, 0.16 + 0.036 * index), "rubber", axis="y", bevel=0.0))
+        for z in (0.62, 1.74):
+            for y in (-0.3, 0.3):
+                model.add(bolt((sign * 0.501, y, z), axis="x", radius=0.009))
     return model, None, [((1.04, 0.74, 1.90), (0.0, 0.0, 0.95))]
 
 
+def _leaf(base, yaw_deg, pitch_deg, length, width, droop_deg=55.0, fold=0.22, rows=9):
+    """Лист фикуса: овальная пластина вдоль дуги от точки base. yaw — куда смотрит, pitch — подъём у черенка,
+    droop — на сколько градусов лист клонится к кончику, fold — насколько он сложен вдоль жилки."""
+    yaw = math.radians(yaw_deg)
+    forward = (math.sin(yaw), -math.cos(yaw))
+    side = (math.cos(yaw), math.sin(yaw))
+    thickness = 0.004
+    along, height = 0.0, 0.0
+    step = length / rows
+    top, bottom = [], []
+    for i in range(rows + 1):
+        t = i / rows
+        angle = math.radians(pitch_deg - droop_deg * t * t)
+        if i:
+            middle = math.radians(pitch_deg - droop_deg * (t - 0.5 / rows) ** 2)
+            along += step * math.cos(middle)
+            height += step * math.sin(middle)
+        half_width = max(width * 0.5 * math.sin(math.pi * t ** 0.7) ** 0.75, 0.005)
+        normal = (-math.sin(angle), math.cos(angle))
+        row_top, row_bottom = [], []
+        for s in (-1.0, -0.55, 0.0, 0.55, 1.0):
+            # Края приподняты над жилкой и чуть волнятся.
+            lift = fold * abs(s) * half_width + 0.004 * math.sin(t * 9.0 + s * 2.0 + yaw)
+            for offset, row in ((lift, row_top), (lift - thickness, row_bottom)):
+                row.append((base[0] + forward[0] * (along + normal[0] * offset) + side[0] * s * half_width,
+                        base[1] + forward[1] * (along + normal[0] * offset) + side[1] * s * half_width,
+                        base[2] + height + normal[1] * offset))
+        top.append(row_top)
+        bottom.append(row_bottom)
+    return shell(top, bottom, "leaf")
+
+
 def build_plant():
-    """Фикус в горшке. Один стебель заканчивается глазом и присматривает за офисом."""
+    """Фикус в керамическом горшке. Один стебель заканчивается глазом и присматривает за офисом."""
     model = Model("plant")
-    model.add(lathe([(0.0, 0.0), (0.17, 0.0), (0.23, 0.33), (0.26, 0.33), (0.26, 0.40), (0.0, 0.40)], (0.0, 0.0, 0.0),
-            "white", bevel=0.015))
-    model.add(cyl(0.262, 0.035, (0.0, 0.0, 0.36), "orange", bevel=0.01))
-    model.add(cyl(0.21, 0.02, (0.0, 0.0, 0.40), "deep"))
-    model.add(cyl(0.03, 0.30, (0.0, 0.0, 0.54), "leaf", vertices=10))
-    base_z = 0.60
-    leaves = ((0.0, 38.0, 0.52), (60.0, 55.0, 0.44), (125.0, 32.0, 0.56), (185.0, 60.0, 0.42), (245.0, 40.0, 0.50),
-            (305.0, 58.0, 0.46), (30.0, 12.0, 0.58), (210.0, 15.0, 0.52))
-    for yaw_deg, tilt_deg, length in leaves:
-        tilt = math.radians(tilt_deg)
+    model.add(lathe([(0.0, 0.0), (0.235, 0.0), (0.25, 0.012), (0.25, 0.03), (0.20, 0.035), (0.0, 0.035)], (0.0, 0.0, 0.0),
+            "white", bevel=0.004))
+    model.add(lathe([(0.0, 0.03), (0.17, 0.03), (0.225, 0.33), (0.255, 0.345), (0.262, 0.385), (0.245, 0.405),
+            (0.225, 0.395), (0.215, 0.36), (0.0, 0.36)], (0.0, 0.0, 0.0), "white", bevel=0.006))
+    model.add(cyl(0.264, 0.03, (0.0, 0.0, 0.365), "orange", bevel=0.008))
+    model.add(cyl(0.222, 0.02, (0.0, 0.0, 0.372), "rubber"))
+    # Ствол с лёгким изгибом и листья по спирали: нижние крупные и поникшие, верхние мельче и смотрят вверх.
+    trunk = [(0.0, 0.0, 0.37), (0.015, -0.01, 0.55), (-0.01, 0.01, 0.75), (0.01, 0.0, 0.93), (0.0, -0.005, 1.02)]
+    model.add(tube(trunk, 0.014, "leaf"))
+    leaves = 17
+    for index in range(leaves):
+        t = index / (leaves - 1)
+        height = 0.45 + 0.54 * t
+        yaw_deg = 137.5 * index + 20.0
         yaw = math.radians(yaw_deg)
-        direction = (math.sin(yaw) * math.sin(tilt), -math.cos(yaw) * math.sin(tilt), math.cos(tilt))
-        center = (direction[0] * length * 0.5, direction[1] * length * 0.5, base_z + direction[2] * length * 0.5)
-        model.add(ball(0.5, center, "leaf", scale=(0.30, 0.07, length), rot=(tilt, 0.0, yaw)))
+        centre = (0.012 * math.sin(height * 9.0), 0.0, height)
+        reach = 0.07 - 0.03 * t
+        base = (centre[0] + math.sin(yaw) * reach, centre[1] - math.cos(yaw) * reach, height + 0.03)
+        model.add(tube([centre, ((centre[0] + base[0]) / 2.0, (centre[1] + base[1]) / 2.0, height + 0.022), base], 0.006,
+                "leaf", steps=2))
+        model.add(_leaf(base, yaw_deg, 14.0 + 52.0 * t, 0.42 - 0.17 * t, 0.21 - 0.08 * t, droop_deg=66.0 - 34.0 * t))
+    model.add(cone(0.012, 0.002, 0.09, (0.0, -0.005, 1.065), "red", vertices=8))
     # Стебель с глазом.
-    eye = (0.10, 0.20, 1.12)
-    model.add(tube([(0.02, 0.02, 0.42), (-0.04, 0.10, 0.75), (0.04, 0.16, 1.00), eye], 0.02, "leaf"))
+    eye = (0.12, 0.21, 1.10)
+    model.add(tube([(0.03, 0.03, 0.37), (-0.05, 0.11, 0.72), (0.05, 0.17, 0.98), eye], 0.016, "leaf"))
     model.add(ball(0.075, eye, "white"))
     model.add(ball(0.04, (eye[0] + 0.012, eye[1] + 0.045, eye[2] - 0.006), "cyan"))
-    model.add(ball(0.022, (eye[0] + 0.017, eye[1] + 0.066, eye[2] - 0.009), "deep"))
+    model.add(ball(0.022, (eye[0] + 0.017, eye[1] + 0.066, eye[2] - 0.009), "void"))
     return model, None, [((0.50, 0.50, 1.10), (0.0, 0.0, 0.55))]
 
 
@@ -310,7 +468,7 @@ def build_vent_grate():
     """Вентиляционная решётка у пола: одна ламель выломана, из темноты смотрят два глаза."""
     model = Model("vent_grate")
     center_z = 0.62
-    model.add(box((0.90, 0.05, 0.50), (0.0, 0.0, center_z), "deep", bevel=0.0))
+    model.add(box((0.90, 0.05, 0.50), (0.0, 0.0, center_z), "void", bevel=0.0))
     outer = rounded_rect_points(1.00, 0.60, 0.08, center=(0.0, center_z))
     inner = rounded_rect_points(0.84, 0.44, 0.04, center=(0.0, center_z))
     model.add(ring_prism(outer, inner, 0.08, "grey", plane="xz", offset=-0.02, bevel=0.015))
@@ -325,7 +483,7 @@ def build_vent_grate():
             rot=(slat_tilt, math.radians(-16.0), 0.0)))
     for sign in (-1.0, 1.0):
         model.add(ball(0.035, (sign * 0.06 - 0.12, 0.028, center_z + 0.005), "glow_yellow", scale=(1.0, 0.4, 1.0)))
-        model.add(ball(0.014, (sign * 0.06 - 0.115, 0.042, center_z + 0.005), "deep"))
+        model.add(ball(0.014, (sign * 0.06 - 0.115, 0.042, center_z + 0.005), "void"))
     for sx in (-1.0, 1.0):
         for sz in (-1.0, 1.0):
             model.add(cyl(0.018, 0.02, (sx * 0.44, 0.06, center_z + sz * 0.24), "white", axis="y", vertices=10))
@@ -401,26 +559,71 @@ def build_whiteboard():
     return model, None, [((1.90, 0.12, 1.14), (0.0, 0.06, center_z))]
 
 
+def _blanket(material, x0, x1, half_y, top_z, lumps=(), hang=0.14, seed=1.0, columns=30, rows=24):
+    """Одеяло на матрасе от x0 до x1: мелкие складки, бугры lumps = [(x, y, радиус_x, радиус_y, высота)],
+    по бокам свисает на hang с волнистым краем, у изголовья (x0) подвёрнуто валиком."""
+    thickness = 0.012
+    flat = 0.76
+    top, bottom = [], []
+    for j in range(rows + 1):
+        v = -1.0 + 2.0 * j / rows
+        side = 1.0 if v >= 0.0 else -1.0
+        drape = max((abs(v) - flat) / (1.0 - flat), 0.0)
+        row_top, row_bottom = [], []
+        for i in range(columns + 1):
+            x = x0 + (x1 - x0) * i / columns
+            if drape > 0.0:
+                y = side * (half_y + 0.02 * math.sin(drape * math.pi / 2.0) + 0.012 * drape * math.sin(x * 29.0 + seed))
+            else:
+                y = v / flat * half_y
+            z = top_z
+            for cx, cy, rx, ry, lump in lumps:
+                z += lump * math.exp(-(((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2))
+            wrinkles = (0.006 * math.sin(17.0 * x + 9.0 * y + seed) + 0.004 * math.sin(-11.0 * x + 23.0 * y + 2.0 * seed)
+                    + 0.003 * math.sin(37.0 * x + 5.0 * y + 3.0 * seed))
+            z += wrinkles * (1.0 - 0.6 * drape) + 0.014 * math.exp(-((x - x0 - 0.035) / 0.03) ** 2)
+            # Скруглённый перегиб через край матраса и волнистый подол.
+            z -= hang * drape ** 1.4 * (1.0 + 0.10 * math.sin(x * 21.0 + seed * 1.7))
+            inward = min(drape * 2.5, 1.0)
+            row_top.append((x, y, z))
+            row_bottom.append((x, y - side * thickness * inward, z - thickness * (1.0 - inward)))
+        top.append(row_top)
+        bottom.append(row_bottom)
+    return shell(top, bottom, material)
+
+
 def build_bunk():
     """Двухъярусная койка: внизу кто-то спит под одеялом, на полу тапочки."""
     model = Model("bunk")
     for sx in (-1.0, 1.0):
         for sy in (-1.0, 1.0):
-            model.add(box((0.09, 0.09, 1.75), (sx * 0.98, sy * 0.42, 0.875), "line", bevel=0.03))
+            model.add(bar((0.07, 0.07, 1.73), (sx * 0.985, sy * 0.425, 0.885), "line", axis="z", bevel=0.012))
+            model.add(cyl(0.045, 0.022, (sx * 0.985, sy * 0.425, 0.011), "rubber", vertices=12))
+            model.add(box((0.08, 0.08, 0.012), (sx * 0.985, sy * 0.425, 1.756), "rubber", bevel=0.004))
+            for z in (0.34, 1.16):
+                model.add(bolt((sx * 1.022, sy * 0.425, z), axis="x", radius=0.011))
     for z in (0.34, 1.16):
-        model.add(box((1.96, 0.86, 0.10), (0.0, 0.0, z), "line", bevel=0.03))
-        model.add(box((1.84, 0.80, 0.14), (0.0, 0.0, z + 0.11), "white", bevel=0.05, segments=3))
-        model.add(box((0.46, 0.60, 0.11), (-0.64, 0.0, z + 0.215), "yellow", bevel=0.05, segments=3))
-    model.add(box((1.20, 0.84, 0.10), (0.30, 0.0, 0.53), "cyan", bevel=0.045, segments=3))
-    model.add(ball(0.5, (0.22, 0.0, 0.56), "cyan", scale=(1.05, 0.52, 0.34)))
-    model.add(box((1.20, 0.84, 0.10), (0.30, 0.0, 1.35), "violet", bevel=0.045, segments=3))
+        model.add(box((1.96, 0.86, 0.10), (0.0, 0.0, z), "line", bevel=0.012))
+        model.add(box((1.84, 0.80, 0.14), (0.0, 0.0, z + 0.11), "fabric_white", bevel=0.045, segments=3))
+        for edge_z in (z + 0.165, z + 0.055):
+            model.add(tube([(sx * 0.9, sy * 0.38, edge_z) for sx, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1), (1, 1))],
+                    0.006, "fabric_white", smooth=False))
+    model.add(cushion((0.46, 0.64, 0.17), (-0.64, 0.0, 0.34 + 0.235), "fabric_yellow", puff=0.85, dent=0.3, steps=14,
+            firm=False))
+    model.add(cushion((0.46, 0.64, 0.17), (-0.66, 0.02, 1.16 + 0.235), "fabric_yellow", puff=0.85, dent=0.1, steps=14,
+            rot=(0.0, 0.0, math.radians(6.0)), firm=False))
+    sleeper = [(-0.24, 0.0, 0.12, 0.13, 0.17), (0.0, 0.02, 0.22, 0.2, 0.25), (0.3, 0.03, 0.22, 0.17, 0.2),
+            (0.58, 0.01, 0.24, 0.13, 0.13), (0.81, 0.0, 0.06, 0.1, 0.17)]
+    model.add(_blanket("fabric_cyan", -0.36, 0.905, 0.415, 0.534, lumps=sleeper, seed=1.0))
+    model.add(_blanket("fabric_violet", -0.30, 0.905, 0.415, 1.354, lumps=[(0.35, -0.1, 0.3, 0.2, 0.03)], seed=4.0))
     for sy in (-1.0, 1.0):
-        model.add(bar((1.96, 0.05, 0.07), (0.0, sy * 0.42, 1.52), "line", bevel=0.02))
+        model.add(bar((1.92, 0.035, 0.05), (0.0, sy * 0.425, 1.53), "line", bevel=0.012))
     # Лестница справа спереди.
     for x in (0.52, 0.86):
-        model.add(box((0.05, 0.05, 1.30), (x, 0.47, 0.65), "yellow", bevel=0.02))
+        model.add(bar((0.04, 0.04, 1.30), (x, 0.47, 0.65), "yellow", axis="z", bevel=0.01))
+        model.add(cyl(0.026, 0.016, (x, 0.47, 0.008), "rubber", vertices=10))
     for index in range(4):
-        model.add(box((0.34, 0.045, 0.045), (0.69, 0.47, 0.22 + 0.30 * index), "yellow", bevel=0.018))
+        model.add(cyl(0.016, 0.34, (0.69, 0.47, 0.22 + 0.30 * index), "grey", axis="x", vertices=10))
     for index, x in enumerate((-0.30, -0.12)):
         model.add(box((0.11, 0.24, 0.07), (x, 0.62, 0.035), "red", bevel=0.03,
                 rot=(0.0, 0.0, math.radians(8.0 - 20.0 * index))))
@@ -429,25 +632,47 @@ def build_bunk():
 
 
 def build_coffee_machine():
-    """Кофейный уголок: тумба, кофемашина с чашкой и башня немытых кружек."""
+    """Кофейный уголок: тумба, рожковая кофемашина с чашкой и башня немытых кружек."""
     model = Model("coffee_machine")
-    model.add(box((0.74, 0.54, 0.08), (0.0, 0.0, 0.04), "panel", bevel=0.03))
-    model.add(box((0.70, 0.50, 0.78), (0.0, 0.0, 0.47), "line", bevel=0.04))
-    model.add(box((0.76, 0.56, 0.05), (0.0, 0.0, 0.875), "white", bevel=0.02))
+    model.add(box((0.70, 0.50, 0.08), (0.0, 0.0, 0.04), "rubber", bevel=0.008))
+    model.add(box((0.70, 0.50, 0.78), (0.0, 0.0, 0.47), "line", bevel=0.012))
+    model.add(box((0.76, 0.56, 0.035), (0.0, 0.0, 0.8775), "laminate", bevel=0.005))
     for sign in (-1.0, 1.0):
-        model.add(box((0.30, 0.02, 0.62), (sign * 0.165, 0.252, 0.46), "mid", bevel=0.012))
-        model.add(box((0.03, 0.03, 0.14), (sign * 0.05, 0.27, 0.56), "yellow", bevel=0.01))
-    top = 0.90
+        model.add(box((0.325, 0.018, 0.66), (sign * 0.168, 0.254, 0.47), "mid", bevel=0.006))
+        model.add(bar((0.012, 0.012, 0.16), (sign * 0.035, 0.282, 0.56), "chrome", axis="z", bevel=0.004))
+        for z in (0.50, 0.62):
+            model.add(cyl(0.005, 0.02, (sign * 0.035, 0.27, z), "chrome", axis="y", vertices=8))
+    top = 0.895
     machine_x = -0.13
-    model.add(box((0.36, 0.30, 0.10), (machine_x, -0.06, top + 0.05), "red", bevel=0.035))
-    model.add(box((0.36, 0.14, 0.44), (machine_x, -0.14, top + 0.22), "red", bevel=0.04))
-    model.add(box((0.36, 0.32, 0.14), (machine_x, -0.05, top + 0.42), "red", bevel=0.045))
-    model.add(box((0.26, 0.02, 0.07), (machine_x, 0.112, top + 0.43), "screen", bevel=0.006))
-    model.add(cyl(0.022, 0.05, (machine_x, 0.02, top + 0.33), "grey", vertices=10))
-    model.add(box((0.24, 0.20, 0.012), (machine_x, 0.0, top + 0.106), "grey", bevel=0.004))
-    model.extend(mug_parts((machine_x, 0.02, top + 0.112), "white"))
-    model.add(cyl(0.035, 0.008, (machine_x, 0.02, top + 0.20), "wood", vertices=14))
-    model.add(cyl(0.03, 0.03, (machine_x + 0.12, 0.115, top + 0.36), "glow_green", axis="y", bevel=0.008, vertices=12))
+    model.add(box((0.36, 0.30, 0.10), (machine_x, -0.06, top + 0.055), "red", bevel=0.014))
+    model.add(box((0.36, 0.14, 0.44), (machine_x, -0.14, top + 0.225), "red", bevel=0.014))
+    model.add(box((0.36, 0.32, 0.14), (machine_x, -0.05, top + 0.425), "red", bevel=0.02))
+    for sx in (-1.0, 1.0):
+        for sy in (-0.18, 0.06):
+            model.add(cyl(0.018, 0.012, (machine_x + sx * 0.15, sy, top + 0.004), "rubber", vertices=10))
+    # Панель: экран, кнопки, манометр.
+    model.add(box((0.30, 0.012, 0.085), (machine_x, 0.108, top + 0.435), "chrome", bevel=0.004))
+    model.add(box((0.12, 0.006, 0.05), (machine_x - 0.07, 0.115, top + 0.435), "screen", bevel=0.002))
+    for index, material in enumerate(("white", "white", "glow_green")):
+        model.add(cyl(0.013, 0.012, (machine_x + 0.03 + 0.04 * index, 0.118, top + 0.435), material, axis="y", bevel=0.003,
+                vertices=12))
+    # Группа с рожком, поддон с решёткой, паровой кран.
+    model.add(cyl(0.034, 0.03, (machine_x - 0.02, 0.02, top + 0.34), "chrome", bevel=0.005, vertices=16))
+    model.add(cyl(0.038, 0.022, (machine_x - 0.02, 0.02, top + 0.315), "chrome", bevel=0.004, vertices=16))
+    model.add(tube([(machine_x - 0.02, 0.05, top + 0.315), (machine_x - 0.02, 0.12, top + 0.31),
+            (machine_x - 0.02, 0.19, top + 0.30)], 0.011, "rubber", smooth=False))
+    model.add(box((0.26, 0.21, 0.014), (machine_x, 0.0, top + 0.112), "chrome", bevel=0.004))
+    for index in range(7):
+        model.add(bar((0.24, 0.006, 0.006), (machine_x, -0.078 + 0.026 * index, top + 0.121), "grey", bevel=0.0))
+    model.add(tube([(machine_x + 0.13, -0.03, top + 0.36), (machine_x + 0.15, 0.04, top + 0.33),
+            (machine_x + 0.15, 0.06, top + 0.20)], 0.006, "chrome"))
+    model.add(cyl(0.012, 0.03, (machine_x + 0.15, 0.06, top + 0.20), "rubber", vertices=10))
+    model.extend(mug_parts((machine_x - 0.02, 0.02, top + 0.124), "white"))
+    # Перильца для чашек наверху.
+    rail = [(machine_x + sx * 0.16, -0.05 + sy * 0.14, top + 0.515) for sx, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1), (1, 1))]
+    model.add(tube(rail, 0.005, "chrome", smooth=False))
+    for point in rail[:4]:
+        model.add(cyl(0.004, 0.022, (point[0], point[1], top + 0.505), "chrome", vertices=6))
     for index, material in enumerate(("yellow", "cyan", "white", "violet")):
         wobble = 0.012 * (1 if index % 2 else -1)
         model.extend(mug_parts((0.22 + wobble, 0.04, top + 0.088 * index), material))

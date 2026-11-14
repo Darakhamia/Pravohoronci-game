@@ -1,0 +1,24 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/textures/surfaces/screen_orm.png" id="1_tex"]
+[ext_resource type="Texture2D" path="res://assets/textures/surfaces/screen_emission.png" id="2_tex"]
+
+[resource]
+albedo_color = Color(0.0235, 0.0353, 0.0549, 1)
+metallic = 0
+roughness = 1
+roughness_texture = ExtResource("1_tex")
+roughness_texture_channel = 1
+emission_enabled = true
+emission = Color(0.1216, 0.6039, 0.651, 1)
+emission_energy_multiplier = 0.9
+emission_operator = 1
+emission_texture = ExtResource("2_tex")
+ao_enabled = true
+ao_light_affect = 0.35
+ao_texture = ExtResource("1_tex")
+ao_texture_channel = 0
+uv1_scale = Vector3(6.25, 6.25, 6.25)
+uv1_triplanar = true
+uv1_triplanar_sharpness = 4.0
+texture_filter = 5

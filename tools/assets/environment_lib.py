@@ -6,7 +6,15 @@
 Повторный запуск генератора без правок даёт те же .glb байт в байт (git не видит изменений). Ради этого
 детали склеиваются в порядке их добавления (_merge), нормали считаются на Python (_set_weighted_normals),
 а буфер геометрии в готовом файле пересобирается в каноническом порядке (_canonicalize_glb).
-Развёртки (UV) у моделей нет: все материалы одноцветные.
+Развёртки (UV) у моделей нет. В самих .glb материалы одноцветные (палитра ниже) и служат только именами:
+при импорте в Godot каждый env_<имя> заменяется PBR-материалом из библиотеки resources/materials
+(текстуры накладываются проекцией с трёх сторон, без UV). Библиотеку и замены пишет
+tools/textures/apply_materials.py; новому ключу в MATERIALS нужна запись и там.
+
+Кроме брусков и тел вращения здесь есть мягкие формы: shell() — тело между двумя сетками точек (одеяло,
+лист), cushion() — подушка или сиденье, cushion_rim() — её кромка для канта, и bolt() — головка винта.
+Мелкие детали (швы, винты, ножки, оправы) — то, что отличает вещь от цветного бруска: добавляй их щедро,
+но внутри прежних габаритов модели.
 """
 
 import json
@@ -29,7 +37,8 @@ SMOOTH_ANGLE_DEG = 40.0
 # Сколько сторон у круглых деталей по умолчанию.
 ROUND_SEGMENTS = 24
 
-# Палитра проекта (sRGB hex) и производные от неё оттенки.
+# Палитра проекта (sRGB hex) и производные от неё оттенки. Так модели выглядят в Blender; в игре вид
+# каждого материала задаёт библиотека resources/materials (см. tools/textures/apply_materials.py).
 MATERIALS = {
     # конструкция станции
     "white": dict(color="f2f3f7", roughness=0.5),
@@ -50,10 +59,21 @@ MATERIALS = {
     "violet": dict(color="a855f7", roughness=0.45),
     "metal": dict(color="9aa0b8", roughness=0.35, metallic=0.35),
     "wood": dict(color="c98a55", roughness=0.6),
+    "laminate": dict(color="ecebe6", roughness=0.3),
+    "enamel_violet": dict(color="8a5fd0", roughness=0.4),
+    "chrome": dict(color="d5d8de", roughness=0.15, metallic=1.0),
+    "rubber": dict(color="1b1c22", roughness=0.9),
+    # «пустота»: дно щелей и отверстий, зрачки — почти чёрная матовая поверхность
+    "void": dict(color="08090c", roughness=0.9),
     "leaf": dict(color="2fbf71", roughness=0.55),
     "water": dict(color="3ddbd9", roughness=0.1, alpha=0.45),
     "glass": dict(color="bfeff5", roughness=0.05, alpha=0.08),
     "cover": dict(color="9fe8f0", roughness=0.05, alpha=0.3),
+    # ткани: матрасы, одеяла, подушки (в игре — тканое полотно из библиотеки материалов)
+    "fabric_white": dict(color="e6e6ea", roughness=0.9),
+    "fabric_yellow": dict(color="e8c24a", roughness=0.9),
+    "fabric_cyan": dict(color="45b9c2", roughness=0.9),
+    "fabric_violet": dict(color="8a5fd0", roughness=0.9),
     # светящиеся детали (свечение подхватывает glow в Environment)
     "lamp": dict(color="fff3d6", emission="fff0cf", strength=2.4),
     "glow_cyan": dict(color="3ddbd9", emission="3ddbd9", strength=2.6),
@@ -336,6 +356,75 @@ def tube(points, radius, material, smooth=True, steps=6, sides=8):
     return obj
 
 
+def shell(top, bottom, material):
+    """Замкнутое тело между двумя сетками точек одинакового размера top и bottom ([ряд][столбец] -> (x, y, z)):
+    верхняя поверхность, нижняя и стенка по краю. Так делаются мягкие вещи — одеяло, подушка, лист растения.
+    Сетки нигде не должны совпадать: у края оставляй хотя бы миллиметр толщины."""
+    rows = len(top)
+    columns = len(top[0])
+    bm = bmesh.new()
+    upper = [[bm.verts.new(point) for point in row] for row in top]
+    lower = [[bm.verts.new(point) for point in row] for row in bottom]
+    for i in range(rows - 1):
+        for j in range(columns - 1):
+            bm.faces.new((upper[i][j], upper[i][j + 1], upper[i + 1][j + 1], upper[i + 1][j]))
+            bm.faces.new((lower[i][j], lower[i + 1][j], lower[i + 1][j + 1], lower[i][j + 1]))
+    border = [(0, j) for j in range(columns)] + [(i, columns - 1) for i in range(1, rows)] \
+            + [(rows - 1, j) for j in range(columns - 2, -1, -1)] + [(i, 0) for i in range(rows - 2, 0, -1)]
+    for index, (i, j) in enumerate(border):
+        k, m = border[(index + 1) % len(border)]
+        bm.faces.new((upper[i][j], lower[i][j], lower[k][m], upper[k][m]))
+    return _object_from_bmesh("part", bm, mat(material))
+
+
+def cushion(size, loc, material, puff=0.5, dent=0.0, steps=10, rot=None, firm=True):
+    """Подушка size = (x, y, z) с центром в loc: тонкая по краю и пухлая в середине (puff 0..1 — насколько
+    край тоньше середины), dent — глубина вмятины посередине сверху (в долях толщины). firm=True — упругая
+    обивка с ровной серединой (сиденье), False — мягкая подушка куполом (постель)."""
+    half_x, half_y, half_z = size[0] / 2.0, size[1] / 2.0, size[2] / 2.0
+    top, bottom = [], []
+    for i in range(steps + 1):
+        v = -1.0 + 2.0 * i / steps
+        row_top, row_bottom = [], []
+        for j in range(steps + 1):
+            u = -1.0 + 2.0 * j / steps
+            # Контур — «суперэллипс»: углы подушки скруглены и чуть оттянуты наружу.
+            power = 4.0 if firm else 2.2
+            edge = (1.0 - abs(u) ** power) * (1.0 - abs(v) ** power)
+            rise = half_z * ((1.0 - puff) + puff * max(edge, 0.0) ** 0.6)
+            pinch = 1.0 - 0.06 * (1.0 - abs(u * v))
+            hollow = dent * half_z * math.exp(-(u * u + v * v) * 3.5)
+            x, y = u * half_x * pinch, v * half_y * pinch
+            row_top.append((x, y, rise - hollow))
+            row_bottom.append((x, y, -rise * 0.8))
+        top.append(row_top)
+        bottom.append(row_bottom)
+    obj = shell(top, bottom, material)
+    obj.location = loc
+    if rot is not None:
+        obj.rotation_euler = rot
+    return obj
+
+
+def cushion_rim(size, puff=0.5, steps=10):
+    """Точки верхней кромки подушки cushion() с теми же параметрами в её локальных координатах (замкнутый
+    обход) — по ним кладут кант."""
+    half_x, half_y, half_z = size[0] / 2.0, size[1] / 2.0, size[2] / 2.0
+    square = [(-1.0 + 2.0 * j / steps, -1.0) for j in range(steps)] + [(1.0, -1.0 + 2.0 * i / steps) for i in range(steps)] \
+            + [(1.0 - 2.0 * j / steps, 1.0) for j in range(steps)] + [(-1.0, 1.0 - 2.0 * i / steps) for i in range(steps)]
+    square.append(square[0])
+    points = []
+    for u, v in square:
+        pinch = 1.0 - 0.06 * (1.0 - abs(u * v))
+        points.append((u * half_x * pinch, v * half_y * pinch, half_z * (1.0 - puff)))
+    return points
+
+
+def bolt(loc, axis="z", radius=0.012, material="grey", depth=0.01):
+    """Головка болта или винта: низкий цилиндр с фаской, ось вдоль axis."""
+    return cyl(radius, depth, loc, material, axis=axis, bevel=min(0.003, depth * 0.3), vertices=8)
+
+
 def arc_points(radius_inner, radius_outer, angle_from_deg, angle_to_deg, steps=10, center=(0.0, 0.0)):
     """Контур дуги-сектора для prism(): углы в градусах, 0° — вправо (+u), 90° — вверх (+v)."""
     outer = []
@@ -536,7 +625,7 @@ def _merge(objects, name, local):
     merged_mesh = bpy.data.meshes.new(name)
     bm.to_mesh(merged_mesh)
     bm.free()
-    # Материалы одноцветные, развёртка не нужна: без неё меньше вершин и файл стабильнее.
+    # Текстуры накладываются проекцией (triplanar), развёртка не нужна: без неё меньше вершин и файл стабильнее.
     while merged_mesh.uv_layers:
         merged_mesh.uv_layers.remove(merged_mesh.uv_layers[0])
     for material in materials:

@@ -1,0 +1,9 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[resource]
+albedo_color = Color(0.6588, 0.3333, 0.9686, 1)
+metallic = 0
+roughness = 0.3
+emission_enabled = true
+emission = Color(0.6588, 0.3333, 0.9686, 1)
+emission_energy_multiplier = 3
