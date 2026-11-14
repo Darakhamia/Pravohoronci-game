@@ -39,6 +39,16 @@ func test_project_config_has_sane_values() -> void:
 	assert_true(config.sabotage_countdown_seconds > 0.0, "на починку саботажа есть время")
 
 
+## Настоящие пороги из resources/game_config.tres: правило записано в CLAUDE.md, раздел 3.
+func test_project_config_keeps_traitor_thresholds() -> void:
+	var config: GameConfig = Game.config
+	assert_eq(MatchRules.traitor_count(2, config), 0, "до двух игроков предателей нет")
+	assert_eq(MatchRules.traitor_count(3, config), 1, "с трёх игроков предатель один")
+	assert_eq(MatchRules.traitor_count(6, config), 1, "шесть игроков — один предатель")
+	assert_eq(MatchRules.traitor_count(7, config), 2, "с семи игроков предателей двое")
+	assert_eq(MatchRules.traitor_count(Net.MAX_PLAYERS, config), 2, "полный сервер — двое")
+
+
 func test_combat_and_perception_settings() -> void:
 	var config: GameConfig = Game.config
 	assert_near(config.attack_lock_seconds, 5.0, "запрет атак после начала игры и собрания")
